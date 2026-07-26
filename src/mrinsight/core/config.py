@@ -19,10 +19,11 @@ class Settings(BaseSettings):
     app_name: str = "MRInsight"
     environment: Literal["local", "test", "staging", "production"] = "local"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    database_url: str
 
 
 @lru_cache
 def get_settings() -> Settings:
     """Return one cached settings instance for the application process"""
 
-    return Settings()
+    return Settings()  # type: ignore[call-arg]
