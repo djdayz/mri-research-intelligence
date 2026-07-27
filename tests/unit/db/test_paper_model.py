@@ -11,6 +11,7 @@ def test_paper_model_contains_expected_columns() -> None:
         "doi",
         "normalized_doi",
         "title",
+        "normalized_title",
         "abstract",
         "publication_date",
         "source_url",
@@ -38,3 +39,10 @@ def test_paper_title_is_required_and_abstract_is_optional() -> None:
 
     assert Paper.__table__.c.title.nullable is False
     assert Paper.__table__.c.abstract.nullable is True
+
+
+def test_normalized_title_is_required_and_indexed() -> None:
+    normalized_title = Paper.__table__.c.normalized_title
+
+    assert normalized_title.nullable is False
+    assert normalized_title.index is True
