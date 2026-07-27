@@ -1,5 +1,3 @@
-from mrinsight.papers.doi import InvalidDOIError, normalize_doi
-from mrinsight.papers.metadata import ResolvedPaperMetadata
 from mrinsight.papers.providers.base import (
     BibliographicProvider,
     BibliographicProviderError,
@@ -10,11 +8,6 @@ from mrinsight.papers.providers.base import (
 from mrinsight.papers.providers.fake import (
     FakeBibliographicProvider,
 )
-from mrinsight.papers.title import (
-    InvalidTitleError,
-    build_title_year_fingerprint,
-    normalize_title,
-)
 
 __all__ = [
     "BibliographicProvider",
@@ -22,11 +15,5 @@ __all__ = [
     "BibliographicProviderUnavailableError",
     "BibliographicRecordNotFoundError",
     "FakeBibliographicProvider",
-    "InvalidDOIError",
     "InvalidBibliographicResponseError",
-    "InvalidTitleError",
-    "ResolvedPaperMetadata",
-    "build_title_year_fingerprint",
-    "normalize_doi",
-    "normalize_title",
 ]
