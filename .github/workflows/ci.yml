@@ -15,6 +15,24 @@ jobs:
     name: Tests and quality checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      MRINSIGHT_DATABASE_URL: postgresql+psycopg://mrinsight:password@localhost:5432/mrinsight_test
+      MRINSIGHT_ENVIRONMENT: test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: mrinsight_test
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: mrinsight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mrinsight -d mrinsight_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     services:
       postgres:
@@ -49,6 +67,15 @@ jobs:
 
       - name: Install project
         run: python -m pip install -e ".[dev]"
+
+      - name: Apply database migrations
+        run: python -m alembic upgrade head
+
+      - name: Verify database migration head
+        run: python -m alembic current --check-heads
+
+      - name: Check model and migration consistency
+        run: python -m alembic check
 
       - name: Run Ruff lint
         run: python -m ruff check .
