@@ -31,6 +31,15 @@ jobs:
       - name: Install project
         run: python -m pip install -e ".[dev]"
 
+      - name: Apply database migrations
+        run: python -m alembic upgrade head
+
+      - name: Verify database migration head
+        run: python -m alembic current --check-heads
+
+      - name: Check model and migration consistency
+        run: python -m alembic check
+
       - name: Run Ruff lint
         run: python -m ruff check .
 
