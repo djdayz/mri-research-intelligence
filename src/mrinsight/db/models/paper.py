@@ -35,6 +35,12 @@ class Paper(Base):
         nullable=False,
     )
 
+    normalized_title: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        index=True,
+    )
+
     abstract: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
