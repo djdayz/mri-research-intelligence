@@ -46,6 +46,11 @@ class Paper(Base):
         nullable=True,
     )
 
+    journal: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     publication_date: Mapped[date | None] = mapped_column(
         Date,
         nullable=True,
@@ -53,6 +58,16 @@ class Paper(Base):
 
     source_url: Mapped[str | None] = mapped_column(
         Text,
+        nullable=True,
+    )
+
+    ingestion_source: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    provider_record_id: Mapped[str | None] = mapped_column(
+        String(255),
         nullable=True,
     )
 
