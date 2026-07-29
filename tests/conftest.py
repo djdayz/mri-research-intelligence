@@ -16,7 +16,7 @@ def test_engine() -> Iterator[Engine]:
 
     if settings.test_database_url is None:
         raise RuntimeError(
-            "MRINSIGHT_TEST_DATABASE_URL is required for integration tests."
+            "MRINSIGHT_TEST_DATABASE_URL is required for database tests."
         )
 
     engine = create_database_engine(settings.test_database_url)

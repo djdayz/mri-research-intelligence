@@ -1,11 +1,16 @@
 from fastapi import FastAPI
 
-from mrinsight.api.routers.health import router as health_router
+from mrinsight.api.routers.health import (
+    router as health_router,
+)
+from mrinsight.api.routers.papers import (
+    router as papers_router,
+)
 from mrinsight.core.config import get_settings
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application"""
+    """Create and configure the FastAPI application."""
 
     settings = get_settings()
 
@@ -15,9 +20,9 @@ def create_app() -> FastAPI:
     )
 
     application.include_router(health_router)
+    application.include_router(papers_router)
 
     return application
 
 
-# For uvicorn: `uvicorn src.mrinsight.main:app --reload`
 app = create_app()
