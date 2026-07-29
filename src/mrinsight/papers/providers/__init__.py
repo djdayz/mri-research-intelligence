@@ -8,6 +8,9 @@ from mrinsight.papers.providers.base import (
 from mrinsight.papers.providers.fake import (
     FakeBibliographicProvider,
 )
+from mrinsight.papers.providers.unconfigured import (
+    UnconfiguredBibliographicProvider,
+)
 
 __all__ = [
     "BibliographicProvider",
@@ -16,4 +19,5 @@ __all__ = [
     "BibliographicRecordNotFoundError",
     "FakeBibliographicProvider",
     "InvalidBibliographicResponseError",
+    "UnconfiguredBibliographicProvider",
 ]
