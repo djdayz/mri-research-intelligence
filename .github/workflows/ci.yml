@@ -16,42 +16,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      MRINSIGHT_DATABASE_URL: postgresql+psycopg://mrinsight:password@localhost:5432/mrinsight_test
-      MRINSIGHT_ENVIRONMENT: test
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: mrinsight_test
-          POSTGRES_PASSWORD: password
-          POSTGRES_USER: mrinsight
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U mrinsight -d mrinsight_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: mrinsight
-          POSTGRES_PASSWORD: mrinsight_ci_password
-          POSTGRES_DB: mrinsight_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U mrinsight -d mrinsight_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
       MRINSIGHT_ENVIRONMENT: test
       MRINSIGHT_DATABASE_URL: postgresql+psycopg://mrinsight:mrinsight_ci_password@localhost:5432/mrinsight_test
+      MRINSIGHT_TEST_DATABASE_URL: postgresql+psycopg://mrinsight:mrinsight_ci_password@localhost:5432/mrinsight_test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: mrinsight_test
+          POSTGRES_PASSWORD: mrinsight_ci_password
+          POSTGRES_USER: mrinsight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mrinsight -d mrinsight_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Check out repository

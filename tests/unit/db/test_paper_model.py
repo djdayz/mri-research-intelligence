@@ -13,8 +13,11 @@ def test_paper_model_contains_expected_columns() -> None:
         "title",
         "normalized_title",
         "abstract",
+        "journal",
         "publication_date",
         "source_url",
+        "ingestion_source",
+        "provider_record_id",
         "created_at",
         "updated_at",
     }
@@ -46,3 +49,7 @@ def test_normalized_title_is_required_and_indexed() -> None:
 
     assert normalized_title.nullable is False
     assert normalized_title.index is True
+
+
+def test_ingestion_source_is_required() -> None:
+    assert Paper.__table__.c.ingestion_source.nullable is False

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     environment: Literal["local", "test", "staging", "production"] = "local"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     database_url: str
+    test_database_url: str | None = None
 
 
 @lru_cache

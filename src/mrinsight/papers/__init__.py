@@ -10,6 +10,7 @@ from mrinsight.papers.providers.base import (
 from mrinsight.papers.providers.fake import (
     FakeBibliographicProvider,
 )
+from mrinsight.papers.records import NewPaper, StoredPaper
 from mrinsight.papers.title import (
     InvalidTitleError,
     build_title_year_fingerprint,
@@ -25,7 +26,9 @@ __all__ = [
     "InvalidDOIError",
     "InvalidBibliographicResponseError",
     "InvalidTitleError",
+    "NewPaper",
     "ResolvedPaperMetadata",
+    "StoredPaper",
     "build_title_year_fingerprint",
     "normalize_doi",
     "normalize_title",
