@@ -67,9 +67,7 @@ class IngestPaperResponse(BaseModel):
             journal=paper.journal,
             publication_date=paper.publication_date,
             source_url=(
-                HttpUrl(paper.source_url)
-                if paper.source_url is not None
-                else None
+                HttpUrl(paper.source_url) if paper.source_url is not None else None
             ),
             ingestion_source=paper.ingestion_source,
             provider_record_id=paper.provider_record_id,
