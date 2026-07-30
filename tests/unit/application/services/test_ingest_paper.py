@@ -5,13 +5,20 @@ from pydantic import HttpUrl
 
 from mrinsight.application.services import (
     BibliographicIdentityMismatchError,
+    ContentWriteOutcome,
     IngestPaperService,
+    StoreAbstractContentService,
 )
 from mrinsight.papers import (
+    ContentType,
+    ExtractionStatus,
     NewPaper,
+    NewPaperContent,
     ResolvedPaperMetadata,
     StoredPaper,
+    StoredPaperContent,
 )
+from mrinsight.papers.repositories import PaperContentNotFoundError
 
 
 class InMemoryPaperRepository:
@@ -79,6 +86,92 @@ class CountingBibliographicProvider:
         return self._record
 
 
+class InMemoryPaperContentRepository:
+    """Small content repository test double."""
+
+    def __init__(self) -> None:
+        self._records: dict[tuple[int, ContentType], StoredPaperContent] = {}
+        self._records_by_id: dict[int, StoredPaperContent] = {}
+        self._next_id = 1
+
+    def get_by_paper_and_type(
+        self,
+        paper_id: int,
+        content_type: ContentType,
+    ) -> StoredPaperContent | None:
+        return self._records.get((paper_id, content_type))
+
+    def add(
+        self,
+        content: NewPaperContent,
+    ) -> StoredPaperContent:
+        now = datetime.now(UTC)
+
+        stored = StoredPaperContent(
+            id=self._next_id,
+            paper_id=content.paper_id,
+            content_type=content.content_type,
+            extraction_status=content.extraction_status,
+            extracted_text=content.extracted_text,
+            parser_version=content.parser_version,
+            checksum=content.checksum,
+            created_at=now,
+            updated_at=now,
+        )
+
+        self._next_id += 1
+        self._records[(stored.paper_id, stored.content_type)] = stored
+        self._records_by_id[stored.id] = stored
+
+        return stored
+
+    def update_extraction(
+        self,
+        content_id: int,
+        *,
+        extraction_status: ExtractionStatus,
+        extracted_text: str | None,
+        parser_version: str,
+        checksum: str | None,
+    ) -> StoredPaperContent:
+        existing = self._records_by_id.get(content_id)
+
+        if existing is None:
+            raise PaperContentNotFoundError(
+                f"Paper content {content_id} does not exist."
+            )
+
+        updated = StoredPaperContent(
+            id=existing.id,
+            paper_id=existing.paper_id,
+            content_type=existing.content_type,
+            extraction_status=extraction_status,
+            extracted_text=extracted_text,
+            parser_version=parser_version,
+            checksum=checksum,
+            created_at=existing.created_at,
+            updated_at=datetime.now(UTC),
+        )
+
+        self._records[(updated.paper_id, updated.content_type)] = updated
+        self._records_by_id[updated.id] = updated
+
+        return updated
+
+
+def make_ingestion_service(
+    provider: CountingBibliographicProvider,
+    paper_repository: InMemoryPaperRepository,
+) -> IngestPaperService:
+    content_repository = InMemoryPaperContentRepository()
+
+    return IngestPaperService(
+        provider=provider,
+        repository=paper_repository,
+        abstract_content_service=StoreAbstractContentService(content_repository),
+    )
+
+
 def make_metadata(
     doi: str = "10.1234/mri.example",
 ) -> ResolvedPaperMetadata:
@@ -100,9 +193,9 @@ def make_metadata(
 def test_ingestion_creates_new_paper() -> None:
     provider = CountingBibliographicProvider(make_metadata())
     repository = InMemoryPaperRepository()
-    service = IngestPaperService(
-        provider=provider,
-        repository=repository,
+    service = make_ingestion_service(
+        provider,
+        repository,
     )
 
     result = service.execute("https://doi.org/10.1234/MRI.EXAMPLE")
@@ -111,15 +204,18 @@ def test_ingestion_creates_new_paper() -> None:
     assert result.paper.normalized_doi == ("10.1234/mri.example")
     assert result.paper.normalized_title == ("deep learning for mri reconstruction")
     assert result.paper.ingestion_source == "fake"
+    assert result.abstract_content.outcome is (ContentWriteOutcome.CREATED)
+    assert result.abstract_content.content is not None
+    assert result.abstract_content.content.content_type is (ContentType.ABSTRACT)
     assert provider.resolve_calls == 1
 
 
 def test_repeated_ingestion_reuses_existing_paper() -> None:
     provider = CountingBibliographicProvider(make_metadata())
     repository = InMemoryPaperRepository()
-    service = IngestPaperService(
-        provider=provider,
-        repository=repository,
+    service = make_ingestion_service(
+        provider,
+        repository,
     )
 
     first = service.execute("10.1234/MRI.EXAMPLE")
@@ -128,15 +224,16 @@ def test_repeated_ingestion_reuses_existing_paper() -> None:
     assert first.created is True
     assert second.created is False
     assert second.paper.id == first.paper.id
+    assert second.abstract_content.outcome is (ContentWriteOutcome.UNCHANGED)
     assert provider.resolve_calls == 1
 
 
 def test_ingestion_rejects_provider_doi_mismatch() -> None:
     provider = CountingBibliographicProvider(make_metadata("10.9999/different.paper"))
     repository = InMemoryPaperRepository()
-    service = IngestPaperService(
-        provider=provider,
-        repository=repository,
+    service = make_ingestion_service(
+        provider,
+        repository,
     )
 
     with pytest.raises(

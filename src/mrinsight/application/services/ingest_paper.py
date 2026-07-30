@@ -1,5 +1,9 @@
 from dataclasses import dataclass
+from typing import Protocol
 
+from mrinsight.application.services.store_abstract_content import (
+    StoreAbstractContentResult,
+)
 from mrinsight.papers.doi import normalize_doi
 from mrinsight.papers.providers import BibliographicProvider
 from mrinsight.papers.records import NewPaper, StoredPaper
@@ -17,6 +21,20 @@ class IngestPaperResult:
 
     paper: StoredPaper
     created: bool
+    abstract_content: StoreAbstractContentResult
+
+
+class AbstractContentService(Protocol):
+    """Application service that stores abstract evidence."""
+
+    def execute(
+        self,
+        paper_id: int,
+        abstract: str | None,
+    ) -> StoreAbstractContentResult:
+        """Store abstract evidence for one paper."""
+
+        ...
 
 
 class IngestPaperService:
@@ -26,9 +44,11 @@ class IngestPaperService:
         self,
         provider: BibliographicProvider,
         repository: PaperRepository,
+        abstract_content_service: AbstractContentService,
     ) -> None:
         self._provider = provider
         self._repository = repository
+        self._abstract_content_service = abstract_content_service
 
     def execute(
         self,
@@ -41,8 +61,8 @@ class IngestPaperService:
         existing = self._repository.get_by_normalized_doi(requested_doi)
 
         if existing is not None:
-            return IngestPaperResult(
-                paper=existing,
+            return self._build_result(
+                existing,
                 created=False,
             )
 
@@ -58,8 +78,8 @@ class IngestPaperService:
         existing = self._repository.get_by_normalized_doi(metadata.doi)
 
         if existing is not None:
-            return IngestPaperResult(
-                paper=existing,
+            return self._build_result(
+                existing,
                 created=False,
             )
 
@@ -82,7 +102,26 @@ class IngestPaperService:
 
         stored_paper = self._repository.add(new_paper)
 
-        return IngestPaperResult(
-            paper=stored_paper,
+        return self._build_result(
+            stored_paper,
             created=True,
+        )
+
+    def _build_result(
+        self,
+        paper: StoredPaper,
+        *,
+        created: bool,
+    ) -> IngestPaperResult:
+        """Attach abstract evidence to an ingestion result."""
+
+        abstract_content = self._abstract_content_service.execute(
+            paper.id,
+            paper.abstract,
+        )
+
+        return IngestPaperResult(
+            paper=paper,
+            created=created,
+            abstract_content=abstract_content,
         )

@@ -2,6 +2,10 @@ from mrinsight.papers.content import (
     ContentType,
     ExtractionStatus,
 )
+from mrinsight.papers.content_records import (
+    NewPaperContent,
+    StoredPaperContent,
+)
 from mrinsight.papers.doi import InvalidDOIError, normalize_doi
 from mrinsight.papers.metadata import ResolvedPaperMetadata
 from mrinsight.papers.providers.base import (
@@ -38,4 +42,6 @@ __all__ = [
     "normalize_title",
     "ContentType",
     "ExtractionStatus",
+    "NewPaperContent",
+    "StoredPaperContent",
 ]
