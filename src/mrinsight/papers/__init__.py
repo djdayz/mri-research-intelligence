@@ -1,3 +1,7 @@
+from mrinsight.papers.content import (
+    ContentType,
+    ExtractionStatus,
+)
 from mrinsight.papers.doi import InvalidDOIError, normalize_doi
 from mrinsight.papers.metadata import ResolvedPaperMetadata
 from mrinsight.papers.providers.base import (
@@ -32,4 +36,6 @@ __all__ = [
     "build_title_year_fingerprint",
     "normalize_doi",
     "normalize_title",
+    "ContentType",
+    "ExtractionStatus",
 ]
