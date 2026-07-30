@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from functools import lru_cache
 from typing import Annotated
 
+import httpx
 from fastapi import Depends
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -17,6 +18,7 @@ from mrinsight.db.session import (
 )
 from mrinsight.papers.providers import (
     BibliographicProvider,
+    CrossrefBibliographicProvider,
     UnconfiguredBibliographicProvider,
 )
 from mrinsight.papers.repositories import PaperRepository
@@ -56,7 +58,19 @@ def get_db_session() -> Iterator[Session]:
 def get_bibliographic_provider() -> BibliographicProvider:
     """Return the configured bibliographic provider."""
 
-    return UnconfiguredBibliographicProvider()
+    settings = get_settings()
+
+    if not settings.crossref_mailto:
+        return UnconfiguredBibliographicProvider()
+
+    return CrossrefBibliographicProvider(
+        client=get_http_client(),
+        mailto=settings.crossref_mailto,
+        user_agent=settings.crossref_user_agent,
+        base_url=settings.crossref_base_url,
+        max_attempts=settings.crossref_max_attempts,
+        backoff_seconds=(settings.crossref_backoff_seconds),
+    )
 
 
 def get_paper_repository(
@@ -86,3 +100,36 @@ def get_ingest_paper_service(
         provider=provider,
         repository=repository,
     )
+
+
+@lru_cache
+def get_http_client() -> httpx.Client:
+    """Return the process-wide outbound HTTP client."""
+
+    settings = get_settings()
+
+    timeout = httpx.Timeout(
+        settings.crossref_timeout_seconds,
+        connect=(settings.crossref_connect_timeout_seconds),
+    )
+
+    return httpx.Client(
+        timeout=timeout,
+        follow_redirects=True,
+    )
+
+
+def close_application_resources() -> None:
+    """Close process-wide database and HTTP resources."""
+
+    get_bibliographic_provider.cache_clear()
+
+    if get_http_client.cache_info().currsize:
+        get_http_client().close()
+        get_http_client.cache_clear()
+
+    get_database_session_factory.cache_clear()
+
+    if get_database_engine.cache_info().currsize:
+        get_database_engine().dispose()
+        get_database_engine.cache_clear()

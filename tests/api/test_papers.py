@@ -121,7 +121,7 @@ def test_post_papers_returns_404_for_unknown_doi(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": ("No bibliographic record was found for this DOI.")
+        "detail": ("No bibliographic record was found by the configured provider.")
     }
 
 

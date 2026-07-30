@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +22,31 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     database_url: str
     test_database_url: str | None = None
+
+    crossref_mailto: str | None = None
+    crossref_base_url: str = "https://api.crossref.org"
+    crossref_user_agent: str = "MRInsight/0.1"
+
+    crossref_timeout_seconds: float = Field(
+        default=10.0,
+        gt=0,
+    )
+
+    crossref_connect_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+    )
+
+    crossref_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+    )
+
+    crossref_backoff_seconds: float = Field(
+        default=0.5,
+        ge=0,
+    )
 
 
 @lru_cache

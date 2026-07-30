@@ -70,7 +70,7 @@ def ingest_paper(
     except BibliographicRecordNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No bibliographic record was found for this DOI.",
+            detail=("No bibliographic record was found by the configured provider."),
         ) from error
     except BibliographicProviderUnavailableError as error:
         raise HTTPException(

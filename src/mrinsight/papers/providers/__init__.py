@@ -5,6 +5,9 @@ from mrinsight.papers.providers.base import (
     BibliographicRecordNotFoundError,
     InvalidBibliographicResponseError,
 )
+from mrinsight.papers.providers.crossref import (
+    CrossrefBibliographicProvider,
+)
 from mrinsight.papers.providers.fake import (
     FakeBibliographicProvider,
 )
@@ -17,6 +20,7 @@ __all__ = [
     "BibliographicProviderError",
     "BibliographicProviderUnavailableError",
     "BibliographicRecordNotFoundError",
+    "CrossrefBibliographicProvider",
     "FakeBibliographicProvider",
     "InvalidBibliographicResponseError",
     "UnconfiguredBibliographicProvider",
