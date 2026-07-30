@@ -1,3 +1,11 @@
 from mrinsight.papers.repositories.base import PaperRepository
+from mrinsight.papers.repositories.content import (
+    PaperContentNotFoundError,
+    PaperContentRepository,
+)
 
-__all__ = ["PaperRepository"]
+__all__ = [
+    "PaperContentNotFoundError",
+    "PaperContentRepository",
+    "PaperRepository",
+]

@@ -7,9 +7,13 @@ from fastapi import Depends
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from mrinsight.application.services import IngestPaperService
+from mrinsight.application.services import (
+    IngestPaperService,
+    StoreAbstractContentService,
+)
 from mrinsight.core.config import get_settings
 from mrinsight.db.repositories import (
+    SqlAlchemyPaperContentRepository,
     SqlAlchemyPaperRepository,
 )
 from mrinsight.db.session import (
@@ -21,7 +25,10 @@ from mrinsight.papers.providers import (
     CrossrefBibliographicProvider,
     UnconfiguredBibliographicProvider,
 )
-from mrinsight.papers.repositories import PaperRepository
+from mrinsight.papers.repositories import (
+    PaperContentRepository,
+    PaperRepository,
+)
 
 
 @lru_cache
@@ -84,6 +91,28 @@ def get_paper_repository(
     return SqlAlchemyPaperRepository(session)
 
 
+def get_paper_content_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> PaperContentRepository:
+    """Construct the SQLAlchemy paper-content repository."""
+
+    return SqlAlchemyPaperContentRepository(session)
+
+
+def get_store_abstract_content_service(
+    repository: Annotated[
+        PaperContentRepository,
+        Depends(get_paper_content_repository),
+    ],
+) -> StoreAbstractContentService:
+    """Construct the abstract-content storage service."""
+
+    return StoreAbstractContentService(repository)
+
+
 def get_ingest_paper_service(
     provider: Annotated[
         BibliographicProvider,
@@ -93,12 +122,17 @@ def get_ingest_paper_service(
         PaperRepository,
         Depends(get_paper_repository),
     ],
+    abstract_content_service: Annotated[
+        StoreAbstractContentService,
+        Depends(get_store_abstract_content_service),
+    ],
 ) -> IngestPaperService:
     """Construct the DOI-ingestion application service."""
 
     return IngestPaperService(
         provider=provider,
         repository=repository,
+        abstract_content_service=abstract_content_service,
     )
 
 

@@ -4,19 +4,29 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import HttpUrl
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from mrinsight.api.dependencies import (
     get_bibliographic_provider,
     get_db_session,
+    get_paper_content_repository,
 )
+from mrinsight.db.models import Paper, PaperContent
 from mrinsight.main import app
-from mrinsight.papers import ResolvedPaperMetadata
+from mrinsight.papers import (
+    ContentType,
+    ExtractionStatus,
+    NewPaperContent,
+    ResolvedPaperMetadata,
+    StoredPaperContent,
+)
 from mrinsight.papers.providers import (
     BibliographicProvider,
     BibliographicProviderUnavailableError,
     FakeBibliographicProvider,
 )
+from mrinsight.papers.repositories import PaperContentRepository
 
 
 def make_metadata_record() -> ResolvedPaperMetadata:
@@ -89,6 +99,7 @@ def test_post_papers_creates_new_paper(
 @pytest.mark.integration
 def test_post_papers_reuses_existing_paper(
     paper_client: TestClient,
+    db_session: Session,
 ) -> None:
     first_response = paper_client.post(
         "/papers",
@@ -108,6 +119,17 @@ def test_post_papers_reuses_existing_paper(
     assert first_body["created"] is True
     assert second_body["created"] is False
     assert second_body["id"] == first_body["id"]
+
+    content_count = db_session.scalar(
+        select(func.count())
+        .select_from(PaperContent)
+        .where(
+            PaperContent.paper_id == first_body["id"],
+            PaperContent.content_type == ContentType.ABSTRACT.value,
+        )
+    )
+
+    assert content_count == 1
 
 
 @pytest.mark.integration
@@ -151,6 +173,34 @@ class UnavailableProvider:
         raise BibliographicProviderUnavailableError("Simulated provider outage.")
 
 
+class FailingPaperContentRepository:
+    """Repository that simulates a content write failure."""
+
+    def get_by_paper_and_type(
+        self,
+        paper_id: int,
+        content_type: ContentType,
+    ) -> StoredPaperContent | None:
+        return None
+
+    def add(
+        self,
+        content: NewPaperContent,
+    ) -> StoredPaperContent:
+        raise RuntimeError("Simulated content persistence failure.")
+
+    def update_extraction(
+        self,
+        content_id: int,
+        *,
+        extraction_status: ExtractionStatus,
+        extracted_text: str | None,
+        parser_version: str,
+        checksum: str | None,
+    ) -> StoredPaperContent:
+        raise RuntimeError("Simulated content persistence failure.")
+
+
 @pytest.mark.integration
 def test_post_papers_returns_503_for_provider_outage(
     paper_client: TestClient,
@@ -182,3 +232,60 @@ def test_post_papers_rejects_unexpected_fields(
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.integration
+def test_content_failure_rolls_back_paper_insert(
+    paper_client: TestClient,
+    db_session: Session,
+) -> None:
+    def override_content_repository() -> PaperContentRepository:
+        return FailingPaperContentRepository()
+
+    app.dependency_overrides[get_paper_content_repository] = override_content_repository
+
+    with pytest.raises(
+        RuntimeError,
+        match="Simulated content persistence failure",
+    ):
+        paper_client.post(
+            "/papers",
+            json={"doi": "10.1234/MRI.EXAMPLE"},
+        )
+
+    paper_count = db_session.scalar(
+        select(func.count())
+        .select_from(Paper)
+        .where(
+            Paper.normalized_doi == "10.1234/mri.example",
+        )
+    )
+
+    assert paper_count == 0
+
+
+@pytest.mark.integration
+def test_post_papers_persists_abstract_evidence(
+    paper_client: TestClient,
+    db_session: Session,
+) -> None:
+    response = paper_client.post(
+        "/papers",
+        json={"doi": "10.1234/MRI.EXAMPLE"},
+    )
+
+    assert response.status_code == 201
+
+    paper_id = response.json()["id"]
+
+    content = db_session.execute(
+        select(PaperContent).where(
+            PaperContent.paper_id == paper_id,
+            PaperContent.content_type == ContentType.ABSTRACT.value,
+        )
+    ).scalar_one()
+
+    assert content.extraction_status == (ExtractionStatus.SUCCEEDED.value)
+    assert content.extracted_text == ("An MRI reconstruction study.")
+    assert content.checksum is not None
+    assert len(content.checksum) == 64
