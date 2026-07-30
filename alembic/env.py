@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 
 from mrinsight.core.config import get_settings
-from mrinsight.db.models import Paper
+from mrinsight.db import models
 from mrinsight.db.session import create_database_engine
 
 config = context.config
@@ -11,7 +11,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Paper.metadata
+target_metadata = models.Paper.metadata
 
 
 def run_migrations_offline() -> None:
