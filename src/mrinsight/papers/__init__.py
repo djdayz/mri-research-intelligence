@@ -1,6 +1,7 @@
 from mrinsight.papers.content import (
     ContentType,
     ExtractionStatus,
+    SectionType,
 )
 from mrinsight.papers.content_records import (
     NewPaperContent,
@@ -44,4 +45,5 @@ __all__ = [
     "ExtractionStatus",
     "NewPaperContent",
     "StoredPaperContent",
+    "SectionType",
 ]

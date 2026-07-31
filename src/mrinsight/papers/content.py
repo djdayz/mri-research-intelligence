@@ -13,3 +13,18 @@ class ExtractionStatus(StrEnum):
 
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class SectionType(StrEnum):
+    """Canonical scientific-document section labels."""
+
+    ABSTRACT = "abstract"
+    BACKGROUND = "background"
+    INTRODUCTION = "introduction"
+    METHODS = "methods"
+    RESULTS = "results"
+    DISCUSSION = "discussion"
+    LIMITATIONS = "limitations"
+    CONCLUSION = "conclusion"
+    REFERENCES = "references"
+    OTHER = "other"
