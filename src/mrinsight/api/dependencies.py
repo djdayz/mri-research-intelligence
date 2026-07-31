@@ -8,11 +8,13 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from mrinsight.application.services import (
+    BuildPaperChunksService,
     IngestPaperService,
     StoreAbstractContentService,
 )
 from mrinsight.core.config import get_settings
 from mrinsight.db.repositories import (
+    SqlAlchemyPaperChunkRepository,
     SqlAlchemyPaperContentRepository,
     SqlAlchemyPaperRepository,
 )
@@ -26,6 +28,7 @@ from mrinsight.papers.providers import (
     UnconfiguredBibliographicProvider,
 )
 from mrinsight.papers.repositories import (
+    PaperChunkRepository,
     PaperContentRepository,
     PaperRepository,
 )
@@ -113,6 +116,28 @@ def get_store_abstract_content_service(
     return StoreAbstractContentService(repository)
 
 
+def get_paper_chunk_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> PaperChunkRepository:
+    """Construct the SQLAlchemy chunk repository."""
+
+    return SqlAlchemyPaperChunkRepository(session)
+
+
+def get_build_paper_chunks_service(
+    repository: Annotated[
+        PaperChunkRepository,
+        Depends(get_paper_chunk_repository),
+    ],
+) -> BuildPaperChunksService:
+    """Construct the chunk-building service."""
+
+    return BuildPaperChunksService(repository)
+
+
 def get_ingest_paper_service(
     provider: Annotated[
         BibliographicProvider,
@@ -126,13 +151,18 @@ def get_ingest_paper_service(
         StoreAbstractContentService,
         Depends(get_store_abstract_content_service),
     ],
+    chunk_service: Annotated[
+        BuildPaperChunksService,
+        Depends(get_build_paper_chunks_service),
+    ],
 ) -> IngestPaperService:
     """Construct the DOI-ingestion application service."""
 
     return IngestPaperService(
         provider=provider,
         repository=repository,
-        abstract_content_service=abstract_content_service,
+        abstract_content_service=(abstract_content_service),
+        chunk_service=chunk_service,
     )
 
 
