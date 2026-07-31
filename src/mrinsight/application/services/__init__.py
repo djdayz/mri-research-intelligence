@@ -1,3 +1,8 @@
+from mrinsight.application.services.build_paper_chunks import (
+    BuildPaperChunksResult,
+    BuildPaperChunksService,
+    ChunkWriteOutcome,
+)
 from mrinsight.application.services.ingest_paper import (
     BibliographicIdentityMismatchError,
     IngestPaperResult,
@@ -11,6 +16,9 @@ from mrinsight.application.services.store_abstract_content import (
 
 __all__ = [
     "BibliographicIdentityMismatchError",
+    "BuildPaperChunksResult",
+    "BuildPaperChunksService",
+    "ChunkWriteOutcome",
     "ContentWriteOutcome",
     "IngestPaperResult",
     "IngestPaperService",

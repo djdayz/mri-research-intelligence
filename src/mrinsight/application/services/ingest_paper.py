@@ -1,8 +1,13 @@
 from dataclasses import dataclass
 from typing import Protocol
 
+from mrinsight.application.services.build_paper_chunks import (
+    BuildPaperChunksResult,
+    BuildPaperChunksService,
+)
 from mrinsight.application.services.store_abstract_content import (
     StoreAbstractContentResult,
+    StoreAbstractContentService,
 )
 from mrinsight.papers.doi import normalize_doi
 from mrinsight.papers.providers import BibliographicProvider
@@ -22,6 +27,7 @@ class IngestPaperResult:
     paper: StoredPaper
     created: bool
     abstract_content: StoreAbstractContentResult
+    chunk_build: BuildPaperChunksResult | None
 
 
 class AbstractContentService(Protocol):
@@ -44,11 +50,13 @@ class IngestPaperService:
         self,
         provider: BibliographicProvider,
         repository: PaperRepository,
-        abstract_content_service: AbstractContentService,
+        abstract_content_service: StoreAbstractContentService,
+        chunk_service: BuildPaperChunksService,
     ) -> None:
         self._provider = provider
         self._repository = repository
         self._abstract_content_service = abstract_content_service
+        self._chunk_service = chunk_service
 
     def execute(
         self,
@@ -113,15 +121,21 @@ class IngestPaperService:
         *,
         created: bool,
     ) -> IngestPaperResult:
-        """Attach abstract evidence to an ingestion result."""
+        """Attach abstract evidence and chunks to ingestion."""
 
         abstract_content = self._abstract_content_service.execute(
             paper.id,
             paper.abstract,
         )
 
+        chunk_build: BuildPaperChunksResult | None = None
+
+        if abstract_content.content is not None:
+            chunk_build = self._chunk_service.execute(abstract_content.content)
+
         return IngestPaperResult(
             paper=paper,
             created=created,
             abstract_content=abstract_content,
+            chunk_build=chunk_build,
         )

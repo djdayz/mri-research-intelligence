@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 
 import pytest
@@ -5,6 +6,8 @@ from pydantic import HttpUrl
 
 from mrinsight.application.services import (
     BibliographicIdentityMismatchError,
+    BuildPaperChunksService,
+    ChunkWriteOutcome,
     ContentWriteOutcome,
     IngestPaperService,
     StoreAbstractContentService,
@@ -13,9 +16,11 @@ from mrinsight.papers import (
     ContentType,
     ExtractionStatus,
     NewPaper,
+    NewPaperChunk,
     NewPaperContent,
     ResolvedPaperMetadata,
     StoredPaper,
+    StoredPaperChunk,
     StoredPaperContent,
 )
 from mrinsight.papers.repositories import PaperContentNotFoundError
@@ -159,16 +164,75 @@ class InMemoryPaperContentRepository:
         return updated
 
 
+class InMemoryPaperChunkRepository:
+    """Small chunk repository test double."""
+
+    def __init__(self) -> None:
+        self._chunks: dict[int, tuple[StoredPaperChunk, ...]] = {}
+        self._next_id = 1
+
+    def list_by_content(
+        self,
+        paper_content_id: int,
+    ) -> tuple[StoredPaperChunk, ...]:
+        return self._chunks.get(paper_content_id, ())
+
+    def add_many(
+        self,
+        chunks: Sequence[NewPaperChunk],
+    ) -> tuple[StoredPaperChunk, ...]:
+        now = datetime.now(UTC)
+        stored_chunks: list[StoredPaperChunk] = []
+
+        for chunk in chunks:
+            stored = StoredPaperChunk(
+                id=self._next_id,
+                paper_id=chunk.paper_id,
+                paper_content_id=chunk.paper_content_id,
+                section_type=chunk.section_type,
+                heading=chunk.heading,
+                sequence_number=chunk.sequence_number,
+                text=chunk.text,
+                start_char=chunk.start_char,
+                end_char=chunk.end_char,
+                paragraph_start_sequence=chunk.paragraph_start_sequence,
+                paragraph_end_sequence=chunk.paragraph_end_sequence,
+                token_count=chunk.token_count,
+                page_number=chunk.page_number,
+                chunker_version=chunk.chunker_version,
+                created_at=now,
+                updated_at=now,
+            )
+
+            self._next_id += 1
+            stored_chunks.append(stored)
+
+        if stored_chunks:
+            self._chunks[stored_chunks[0].paper_content_id] = tuple(stored_chunks)
+
+        return tuple(stored_chunks)
+
+    def delete_by_content(
+        self,
+        paper_content_id: int,
+    ) -> int:
+        existing = self._chunks.pop(paper_content_id, ())
+
+        return len(existing)
+
+
 def make_ingestion_service(
     provider: CountingBibliographicProvider,
     paper_repository: InMemoryPaperRepository,
 ) -> IngestPaperService:
     content_repository = InMemoryPaperContentRepository()
+    chunk_repository = InMemoryPaperChunkRepository()
 
     return IngestPaperService(
         provider=provider,
         repository=paper_repository,
-        abstract_content_service=StoreAbstractContentService(content_repository),
+        abstract_content_service=(StoreAbstractContentService(content_repository)),
+        chunk_service=BuildPaperChunksService(chunk_repository),
     )
 
 
@@ -208,6 +272,9 @@ def test_ingestion_creates_new_paper() -> None:
     assert result.abstract_content.content is not None
     assert result.abstract_content.content.content_type is (ContentType.ABSTRACT)
     assert provider.resolve_calls == 1
+    assert result.chunk_build is not None
+    assert result.chunk_build.outcome is (ChunkWriteOutcome.CREATED)
+    assert len(result.chunk_build.chunks) == 1
 
 
 def test_repeated_ingestion_reuses_existing_paper() -> None:
@@ -226,6 +293,8 @@ def test_repeated_ingestion_reuses_existing_paper() -> None:
     assert second.paper.id == first.paper.id
     assert second.abstract_content.outcome is (ContentWriteOutcome.UNCHANGED)
     assert provider.resolve_calls == 1
+    assert second.chunk_build is not None
+    assert second.chunk_build.outcome is (ChunkWriteOutcome.UNCHANGED)
 
 
 def test_ingestion_rejects_provider_doi_mismatch() -> None:

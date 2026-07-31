@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from datetime import date
 
 import pytest
@@ -10,15 +10,23 @@ from sqlalchemy.orm import Session
 from mrinsight.api.dependencies import (
     get_bibliographic_provider,
     get_db_session,
+    get_paper_chunk_repository,
     get_paper_content_repository,
 )
-from mrinsight.db.models import Paper, PaperContent
+from mrinsight.db.models import (
+    Paper,
+    PaperChunk,
+    PaperContent,
+)
 from mrinsight.main import app
 from mrinsight.papers import (
     ContentType,
     ExtractionStatus,
+    NewPaperChunk,
     NewPaperContent,
     ResolvedPaperMetadata,
+    SectionType,
+    StoredPaperChunk,
     StoredPaperContent,
 )
 from mrinsight.papers.providers import (
@@ -26,7 +34,10 @@ from mrinsight.papers.providers import (
     BibliographicProviderUnavailableError,
     FakeBibliographicProvider,
 )
-from mrinsight.papers.repositories import PaperContentRepository
+from mrinsight.papers.repositories import (
+    PaperChunkRepository,
+    PaperContentRepository,
+)
 
 
 def make_metadata_record() -> ResolvedPaperMetadata:
@@ -130,6 +141,16 @@ def test_post_papers_reuses_existing_paper(
     )
 
     assert content_count == 1
+
+    chunk_count = db_session.scalar(
+        select(func.count())
+        .select_from(PaperChunk)
+        .where(
+            PaperChunk.paper_id == first_body["id"],
+        )
+    )
+
+    assert chunk_count == 1
 
 
 @pytest.mark.integration
@@ -289,3 +310,75 @@ def test_post_papers_persists_abstract_evidence(
     assert content.extracted_text == ("An MRI reconstruction study.")
     assert content.checksum is not None
     assert len(content.checksum) == 64
+
+    chunks = (
+        db_session.execute(
+            select(PaperChunk)
+            .where(PaperChunk.paper_id == paper_id)
+            .order_by(PaperChunk.sequence_number)
+        )
+        .scalars()
+        .all()
+    )
+
+    assert len(chunks) == 1
+    assert chunks[0].paper_content_id == content.id
+    assert chunks[0].section == SectionType.ABSTRACT.value
+    assert chunks[0].text == ("An MRI reconstruction study.")
+    assert chunks[0].chunker_version == ("section-paragraph-v1")
+
+
+class FailingPaperChunkRepository:
+    """Repository that simulates chunk persistence failure."""
+
+    def list_by_content(
+        self,
+        paper_content_id: int,
+    ) -> tuple[StoredPaperChunk, ...]:
+        return ()
+
+    def add_many(
+        self,
+        chunks: Sequence[NewPaperChunk],
+    ) -> tuple[StoredPaperChunk, ...]:
+        raise RuntimeError("Simulated chunk persistence failure.")
+
+    def delete_by_content(
+        self,
+        paper_content_id: int,
+    ) -> int:
+        return 0
+
+
+@pytest.mark.integration
+def test_chunk_failure_rolls_back_paper_and_content(
+    paper_client: TestClient,
+    db_session: Session,
+) -> None:
+    def override_chunk_repository() -> PaperChunkRepository:
+        return FailingPaperChunkRepository()
+
+    app.dependency_overrides[get_paper_chunk_repository] = override_chunk_repository
+
+    with pytest.raises(
+        RuntimeError,
+        match="Simulated chunk persistence failure",
+    ):
+        paper_client.post(
+            "/papers",
+            json={"doi": "10.1234/MRI.EXAMPLE"},
+        )
+
+    paper_count = db_session.scalar(
+        select(func.count())
+        .select_from(Paper)
+        .where(Paper.normalized_doi == "10.1234/mri.example")
+    )
+
+    content_count = db_session.scalar(select(func.count()).select_from(PaperContent))
+
+    chunk_count = db_session.scalar(select(func.count()).select_from(PaperChunk))
+
+    assert paper_count == 0
+    assert content_count == 0
+    assert chunk_count == 0
