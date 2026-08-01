@@ -28,3 +28,10 @@ class SectionType(StrEnum):
     CONCLUSION = "conclusion"
     REFERENCES = "references"
     OTHER = "other"
+
+
+class AnalysisScope(StrEnum):
+    """Scientific-content scope selected for analysis."""
+
+    ABSTRACT_ONLY = "abstract_only"
+    FULL_TEXT = "full_text"

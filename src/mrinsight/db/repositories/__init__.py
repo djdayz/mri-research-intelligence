@@ -7,9 +7,13 @@ from mrinsight.db.repositories.paper_chunk import (
 from mrinsight.db.repositories.paper_content import (
     SqlAlchemyPaperContentRepository,
 )
+from mrinsight.db.repositories.paper_content_page import (
+    SqlAlchemyPaperContentPageRepository,
+)
 
 __all__ = [
     "SqlAlchemyPaperChunkRepository",
+    "SqlAlchemyPaperContentPageRepository",
     "SqlAlchemyPaperContentRepository",
     "SqlAlchemyPaperRepository",
 ]

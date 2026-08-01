@@ -21,6 +21,7 @@ class NewPaperChunk:
     token_count: int
     page_number: int | None
     chunker_version: str
+    end_page_number: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,3 +44,4 @@ class StoredPaperChunk:
     chunker_version: str
     created_at: datetime
     updated_at: datetime
+    end_page_number: int | None = None

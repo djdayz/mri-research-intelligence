@@ -2,7 +2,7 @@ from io import BytesIO
 
 import pytest
 from pypdf import PdfWriter
-from tests.helpers.pdf_factory import build_text_pdf
+from tests.helpers.pdf_factory import build_blank_pdf, build_text_pdf
 
 from mrinsight.documents import (
     DocumentAccessBasis,
@@ -29,20 +29,6 @@ def make_candidate(
         data=data,
         access_basis=DocumentAccessBasis.USER_UPLOAD,
     )
-
-
-def build_blank_pdf() -> bytes:
-    """Build a valid one-page PDF with no text."""
-
-    output = BytesIO()
-    writer = PdfWriter()
-    writer.add_blank_page(
-        width=612,
-        height=792,
-    )
-    writer.write(output)
-
-    return output.getvalue()
 
 
 def build_encrypted_pdf() -> bytes:

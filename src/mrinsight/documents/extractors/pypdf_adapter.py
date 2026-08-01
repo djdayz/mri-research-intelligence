@@ -41,6 +41,12 @@ class PypdfDocumentAdapter:
 
         return PYPDF_EXTRACTOR_VERSION
 
+    @property
+    def library_version(self) -> str:
+        """Return the installed pypdf version."""
+
+        return pypdf.__version__
+
     def inspect(
         self,
         data: bytes,
@@ -150,7 +156,7 @@ class PypdfDocumentAdapter:
                 source_sha256=document.sha256,
                 extractor_name=self.name,
                 extractor_version=self.version,
-                library_version=pypdf.__version__,
+                library_version=self.library_version,
             )
         finally:
             reader.close()

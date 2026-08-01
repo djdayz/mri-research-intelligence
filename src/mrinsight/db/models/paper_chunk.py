@@ -61,8 +61,14 @@ class PaperChunk(Base):
             name="ck_paper_chunks_positive_token_count",
         ),
         CheckConstraint(
-            "page_number IS NULL OR page_number >= 1",
-            name="ck_paper_chunks_positive_page_number",
+            "("
+            "page_number IS NULL "
+            "AND end_page_number IS NULL"
+            ") OR ("
+            "page_number >= 1 "
+            "AND end_page_number >= page_number"
+            ")",
+            name="ck_paper_chunks_valid_page_range",
         ),
         CheckConstraint(
             "length(text) > 0",
@@ -145,6 +151,11 @@ class PaperChunk(Base):
     )
 
     page_number: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    end_page_number: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
     )

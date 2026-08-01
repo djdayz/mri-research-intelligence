@@ -90,6 +90,7 @@ def test_content_repository_updates_existing_extraction(
             extracted_text=None,
             parser_version="scientific-text-v0",
             checksum=None,
+            extraction_error="Simulated extraction failure.",
         )
     )
 

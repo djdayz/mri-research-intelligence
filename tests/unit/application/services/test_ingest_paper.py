@@ -31,7 +31,14 @@ class InMemoryPaperRepository:
 
     def __init__(self) -> None:
         self._records: dict[str, StoredPaper] = {}
+        self._records_by_id: dict[int, StoredPaper] = {}
         self._next_id = 1
+
+    def get_by_id(
+        self,
+        paper_id: int,
+    ) -> StoredPaper | None:
+        return self._records_by_id.get(paper_id)
 
     def get_by_normalized_doi(
         self,
@@ -62,6 +69,7 @@ class InMemoryPaperRepository:
         )
 
         self._next_id += 1
+        self._records_by_id[stored.id] = stored
 
         if stored.normalized_doi is not None:
             self._records[stored.normalized_doi] = stored
@@ -120,6 +128,15 @@ class InMemoryPaperContentRepository:
             extracted_text=content.extracted_text,
             parser_version=content.parser_version,
             checksum=content.checksum,
+            source_filename=content.source_filename,
+            source_media_type=content.source_media_type,
+            source_sha256=content.source_sha256,
+            access_basis=content.access_basis,
+            page_count=content.page_count,
+            text_page_count=content.text_page_count,
+            extractor_name=content.extractor_name,
+            extractor_library_version=(content.extractor_library_version),
+            extraction_error=content.extraction_error,
             created_at=now,
             updated_at=now,
         )
@@ -138,6 +155,15 @@ class InMemoryPaperContentRepository:
         extracted_text: str | None,
         parser_version: str,
         checksum: str | None,
+        source_filename: str | None = None,
+        source_media_type: str | None = None,
+        source_sha256: str | None = None,
+        access_basis: str | None = None,
+        page_count: int | None = None,
+        text_page_count: int | None = None,
+        extractor_name: str | None = None,
+        extractor_library_version: str | None = None,
+        extraction_error: str | None = None,
     ) -> StoredPaperContent:
         existing = self._records_by_id.get(content_id)
 
@@ -154,6 +180,15 @@ class InMemoryPaperContentRepository:
             extracted_text=extracted_text,
             parser_version=parser_version,
             checksum=checksum,
+            source_filename=source_filename,
+            source_media_type=source_media_type,
+            source_sha256=source_sha256,
+            access_basis=access_basis,
+            page_count=page_count,
+            text_page_count=text_page_count,
+            extractor_name=extractor_name,
+            extractor_library_version=(extractor_library_version),
+            extraction_error=extraction_error,
             created_at=existing.created_at,
             updated_at=datetime.now(UTC),
         )

@@ -9,18 +9,27 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from mrinsight.application.services import (
     BuildPaperChunksService,
+    IngestFullTextService,
     IngestPaperService,
+    SelectAnalysisContentService,
     StoreAbstractContentService,
 )
 from mrinsight.core.config import get_settings
 from mrinsight.db.repositories import (
     SqlAlchemyPaperChunkRepository,
+    SqlAlchemyPaperContentPageRepository,
     SqlAlchemyPaperContentRepository,
     SqlAlchemyPaperRepository,
 )
 from mrinsight.db.session import (
     create_database_engine,
     create_session_factory,
+)
+from mrinsight.documents import PdfUploadPolicy
+from mrinsight.documents.extractors import (
+    PdfDocumentInspector,
+    PdfTextExtractor,
+    PypdfDocumentAdapter,
 )
 from mrinsight.papers.providers import (
     BibliographicProvider,
@@ -29,6 +38,7 @@ from mrinsight.papers.providers import (
 )
 from mrinsight.papers.repositories import (
     PaperChunkRepository,
+    PaperContentPageRepository,
     PaperContentRepository,
     PaperRepository,
 )
@@ -105,6 +115,17 @@ def get_paper_content_repository(
     return SqlAlchemyPaperContentRepository(session)
 
 
+def get_paper_content_page_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> PaperContentPageRepository:
+    """Construct the SQLAlchemy content-page repository."""
+
+    return SqlAlchemyPaperContentPageRepository(session)
+
+
 def get_store_abstract_content_service(
     repository: Annotated[
         PaperContentRepository,
@@ -114,6 +135,17 @@ def get_store_abstract_content_service(
     """Construct the abstract-content storage service."""
 
     return StoreAbstractContentService(repository)
+
+
+def get_select_analysis_content_service(
+    repository: Annotated[
+        PaperContentRepository,
+        Depends(get_paper_content_repository),
+    ],
+) -> SelectAnalysisContentService:
+    """Construct the analysis-content selector."""
+
+    return SelectAnalysisContentService(repository)
 
 
 def get_paper_chunk_repository(
@@ -136,6 +168,89 @@ def get_build_paper_chunks_service(
     """Construct the chunk-building service."""
 
     return BuildPaperChunksService(repository)
+
+
+@lru_cache
+def get_pdf_document_adapter() -> PypdfDocumentAdapter:
+    """Return the process-wide PDF adapter."""
+
+    return PypdfDocumentAdapter()
+
+
+def get_pdf_inspector(
+    adapter: Annotated[
+        PypdfDocumentAdapter,
+        Depends(get_pdf_document_adapter),
+    ],
+) -> PdfDocumentInspector:
+    """Return the PDF document inspector."""
+
+    return adapter
+
+
+def get_pdf_text_extractor(
+    adapter: Annotated[
+        PypdfDocumentAdapter,
+        Depends(get_pdf_document_adapter),
+    ],
+) -> PdfTextExtractor:
+    """Return the PDF text extractor."""
+
+    return adapter
+
+
+def get_pdf_upload_policy() -> PdfUploadPolicy:
+    """Return the configured PDF upload policy."""
+
+    settings = get_settings()
+
+    return PdfUploadPolicy(
+        max_bytes=settings.pdf_max_bytes,
+        max_pages=settings.pdf_max_pages,
+    )
+
+
+def get_ingest_full_text_service(
+    paper_repository: Annotated[
+        PaperRepository,
+        Depends(get_paper_repository),
+    ],
+    content_repository: Annotated[
+        PaperContentRepository,
+        Depends(get_paper_content_repository),
+    ],
+    page_repository: Annotated[
+        PaperContentPageRepository,
+        Depends(get_paper_content_page_repository),
+    ],
+    chunk_service: Annotated[
+        BuildPaperChunksService,
+        Depends(get_build_paper_chunks_service),
+    ],
+    inspector: Annotated[
+        PdfDocumentInspector,
+        Depends(get_pdf_inspector),
+    ],
+    extractor: Annotated[
+        PdfTextExtractor,
+        Depends(get_pdf_text_extractor),
+    ],
+    policy: Annotated[
+        PdfUploadPolicy,
+        Depends(get_pdf_upload_policy),
+    ],
+) -> IngestFullTextService:
+    """Construct the full-text ingestion service."""
+
+    return IngestFullTextService(
+        paper_repository=paper_repository,
+        content_repository=content_repository,
+        page_repository=page_repository,
+        chunk_service=chunk_service,
+        inspector=inspector,
+        extractor=extractor,
+        policy=policy,
+    )
 
 
 def get_ingest_paper_service(
@@ -187,6 +302,7 @@ def close_application_resources() -> None:
     """Close process-wide database and HTTP resources."""
 
     get_bibliographic_provider.cache_clear()
+    get_pdf_document_adapter.cache_clear()
 
     if get_http_client.cache_info().currsize:
         get_http_client().close()

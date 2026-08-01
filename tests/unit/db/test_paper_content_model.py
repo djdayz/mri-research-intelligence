@@ -20,6 +20,15 @@ def test_paper_content_contains_expected_columns() -> None:
         "extracted_text",
         "parser_version",
         "checksum",
+        "source_filename",
+        "source_media_type",
+        "source_sha256",
+        "access_basis",
+        "page_count",
+        "text_page_count",
+        "extractor_name",
+        "extractor_library_version",
+        "extraction_error",
         "created_at",
         "updated_at",
     }
@@ -47,7 +56,13 @@ def test_paper_content_has_state_check_constraints() -> None:
     assert {
         "ck_paper_contents_supported_content_type",
         "ck_paper_contents_supported_extraction_status",
-        "ck_paper_contents_successful_content_has_text",
+        "ck_paper_contents_valid_extraction_state",
+        "ck_paper_contents_supported_access_basis",
+        "ck_paper_contents_valid_source_sha256",
+        "ck_paper_contents_positive_page_count",
+        "ck_paper_contents_nonnegative_text_page_count",
+        "ck_paper_contents_valid_text_page_count",
+        "ck_paper_contents_full_text_has_provenance",
     }.issubset(constraint_names)
 
 

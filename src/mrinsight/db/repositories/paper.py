@@ -11,6 +11,22 @@ class SqlAlchemyPaperRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
+    def get_by_id(
+        self,
+        paper_id: int,
+    ) -> StoredPaper | None:
+        """Return a paper by database identity."""
+
+        model = self._session.get(
+            Paper,
+            paper_id,
+        )
+
+        if model is None:
+            return None
+
+        return self._to_stored_paper(model)
+
     def get_by_normalized_doi(
         self,
         normalized_doi: str,

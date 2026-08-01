@@ -1,4 +1,21 @@
 from collections.abc import Sequence
+from io import BytesIO
+
+from pypdf import PdfWriter
+
+
+def build_blank_pdf() -> bytes:
+    """Build a valid one-page PDF without embedded text."""
+
+    output = BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(
+        width=612,
+        height=792,
+    )
+    writer.write(output)
+
+    return output.getvalue()
 
 
 def build_text_pdf(

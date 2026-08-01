@@ -40,6 +40,12 @@ class PdfTextExtractor(Protocol):
 
         ...
 
+    @property
+    def library_version(self) -> str:
+        """Return the underlying extraction library version."""
+
+        ...
+
     def extract(
         self,
         document: ValidatedPdfUpload,
