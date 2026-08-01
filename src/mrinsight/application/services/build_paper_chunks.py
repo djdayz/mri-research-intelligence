@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -10,6 +11,7 @@ from mrinsight.papers import (
     NewPaperChunk,
     StoredPaperChunk,
     StoredPaperContent,
+    StoredPaperContentPage,
 )
 from mrinsight.papers.repositories import (
     PaperChunkRepository,
@@ -54,6 +56,8 @@ class BuildPaperChunksService:
     def execute(
         self,
         content: StoredPaperContent,
+        *,
+        pages: Sequence[StoredPaperContentPage] = (),
     ) -> BuildPaperChunksResult:
         """Create, rebuild, reuse or clear persisted chunks."""
 
@@ -75,24 +79,35 @@ class BuildPaperChunksService:
             include_references=self._include_references,
         )
 
-        candidates = tuple(
-            NewPaperChunk(
-                paper_id=content.paper_id,
-                paper_content_id=content.id,
-                section_type=chunk.section_type,
-                heading=chunk.heading,
-                sequence_number=chunk.sequence_number,
-                text=chunk.text,
-                start_char=chunk.start_char,
-                end_char=chunk.end_char,
-                paragraph_start_sequence=(chunk.paragraph_start_sequence),
-                paragraph_end_sequence=(chunk.paragraph_end_sequence),
-                token_count=chunk.token_count,
-                page_number=None,
-                chunker_version=CHUNKER_VERSION,
+        candidates_list: list[NewPaperChunk] = []
+
+        for chunk in detected_chunks:
+            page_number, end_page_number = _resolve_page_range(
+                chunk.start_char,
+                chunk.end_char,
+                pages,
             )
-            for chunk in detected_chunks
-        )
+
+            candidates_list.append(
+                NewPaperChunk(
+                    paper_id=content.paper_id,
+                    paper_content_id=content.id,
+                    section_type=chunk.section_type,
+                    heading=chunk.heading,
+                    sequence_number=chunk.sequence_number,
+                    text=chunk.text,
+                    start_char=chunk.start_char,
+                    end_char=chunk.end_char,
+                    paragraph_start_sequence=(chunk.paragraph_start_sequence),
+                    paragraph_end_sequence=(chunk.paragraph_end_sequence),
+                    token_count=chunk.token_count,
+                    page_number=page_number,
+                    chunker_version=CHUNKER_VERSION,
+                    end_page_number=end_page_number,
+                )
+            )
+
+        candidates = tuple(candidates_list)
 
         if not candidates:
             return self._clear_or_skip(
@@ -185,5 +200,28 @@ def _stored_chunk_matches_candidate(
         and stored.paragraph_end_sequence == candidate.paragraph_end_sequence
         and stored.token_count == candidate.token_count
         and stored.page_number == candidate.page_number
+        and stored.end_page_number == candidate.end_page_number
         and stored.chunker_version == candidate.chunker_version
+    )
+
+
+def _resolve_page_range(
+    start_char: int,
+    end_char: int,
+    pages: Sequence[StoredPaperContentPage],
+) -> tuple[int | None, int | None]:
+    """Return first and final pages overlapping a chunk."""
+
+    overlapping_pages = [
+        page
+        for page in pages
+        if (start_char < page.end_char and end_char > page.start_char)
+    ]
+
+    if not overlapping_pages:
+        return None, None
+
+    return (
+        overlapping_pages[0].page_number,
+        overlapping_pages[-1].page_number,
     )

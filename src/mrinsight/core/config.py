@@ -48,6 +48,16 @@ class Settings(BaseSettings):
         ge=0,
     )
 
+    pdf_max_bytes: int = Field(
+        default=25 * 1024 * 1024,
+        ge=1,
+    )
+
+    pdf_max_pages: int = Field(
+        default=500,
+        ge=1,
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

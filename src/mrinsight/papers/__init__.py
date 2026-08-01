@@ -3,9 +3,14 @@ from mrinsight.papers.chunk_records import (
     StoredPaperChunk,
 )
 from mrinsight.papers.content import (
+    AnalysisScope,
     ContentType,
     ExtractionStatus,
     SectionType,
+)
+from mrinsight.papers.content_page_records import (
+    NewPaperContentPage,
+    StoredPaperContentPage,
 )
 from mrinsight.papers.content_records import (
     NewPaperContent,
@@ -52,4 +57,7 @@ __all__ = [
     "SectionType",
     "NewPaperChunk",
     "StoredPaperChunk",
+    "AnalysisScope",
+    "NewPaperContentPage",
+    "StoredPaperContentPage",
 ]

@@ -53,6 +53,15 @@ class SqlAlchemyPaperContentRepository:
             extracted_text=content.extracted_text,
             parser_version=content.parser_version,
             checksum=content.checksum,
+            source_filename=content.source_filename,
+            source_media_type=content.source_media_type,
+            source_sha256=content.source_sha256,
+            access_basis=content.access_basis,
+            page_count=content.page_count,
+            text_page_count=content.text_page_count,
+            extractor_name=content.extractor_name,
+            extractor_library_version=(content.extractor_library_version),
+            extraction_error=content.extraction_error,
         )
 
         self._session.add(model)
@@ -69,6 +78,15 @@ class SqlAlchemyPaperContentRepository:
         extracted_text: str | None,
         parser_version: str,
         checksum: str | None,
+        source_filename: str | None = None,
+        source_media_type: str | None = None,
+        source_sha256: str | None = None,
+        access_basis: str | None = None,
+        page_count: int | None = None,
+        text_page_count: int | None = None,
+        extractor_name: str | None = None,
+        extractor_library_version: str | None = None,
+        extraction_error: str | None = None,
     ) -> StoredPaperContent:
         """Update extraction fields and flush without committing."""
 
@@ -86,6 +104,15 @@ class SqlAlchemyPaperContentRepository:
         model.extracted_text = extracted_text
         model.parser_version = parser_version
         model.checksum = checksum
+        model.source_filename = source_filename
+        model.source_media_type = source_media_type
+        model.source_sha256 = source_sha256
+        model.access_basis = access_basis
+        model.page_count = page_count
+        model.text_page_count = text_page_count
+        model.extractor_name = extractor_name
+        model.extractor_library_version = extractor_library_version
+        model.extraction_error = extraction_error
 
         self._session.flush()
         self._session.refresh(model)
@@ -106,6 +133,15 @@ class SqlAlchemyPaperContentRepository:
             extracted_text=model.extracted_text,
             parser_version=model.parser_version,
             checksum=model.checksum,
+            source_filename=model.source_filename,
+            source_media_type=model.source_media_type,
+            source_sha256=model.source_sha256,
+            access_basis=model.access_basis,
+            page_count=model.page_count,
+            text_page_count=model.text_page_count,
+            extractor_name=model.extractor_name,
+            extractor_library_version=(model.extractor_library_version),
+            extraction_error=model.extraction_error,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

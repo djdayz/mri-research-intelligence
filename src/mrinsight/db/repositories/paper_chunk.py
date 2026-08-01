@@ -55,6 +55,7 @@ class SqlAlchemyPaperChunkRepository:
                 paragraph_end_sequence=(chunk.paragraph_end_sequence),
                 token_count=chunk.token_count,
                 page_number=chunk.page_number,
+                end_page_number=chunk.end_page_number,
                 chunker_version=chunk.chunker_version,
             )
             for chunk in chunks
@@ -106,6 +107,7 @@ class SqlAlchemyPaperChunkRepository:
             paragraph_end_sequence=(model.paragraph_end_sequence),
             token_count=model.token_count,
             page_number=model.page_number,
+            end_page_number=model.end_page_number,
             chunker_version=model.chunker_version,
             created_at=model.created_at,
             updated_at=model.updated_at,

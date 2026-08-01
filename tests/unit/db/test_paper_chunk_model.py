@@ -26,6 +26,7 @@ def test_paper_chunk_contains_expected_columns() -> None:
         "paragraph_end_sequence",
         "token_count",
         "page_number",
+        "end_page_number",
         "chunker_version",
         "created_at",
         "updated_at",
@@ -57,6 +58,6 @@ def test_paper_chunk_has_evidence_constraints() -> None:
         "ck_paper_chunks_valid_character_range",
         "ck_paper_chunks_valid_paragraph_range",
         "ck_paper_chunks_positive_token_count",
-        "ck_paper_chunks_positive_page_number",
+        "ck_paper_chunks_valid_page_range",
         "ck_paper_chunks_nonempty_text",
     }.issubset(names)
