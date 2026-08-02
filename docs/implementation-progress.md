@@ -24,9 +24,15 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 - [x] 7C: TF-IDF topic baseline
 - [x] 7D: Relevance persistence and API integration
 
-## Milestones 8-16
+## Milestone 8
 
-- [ ] Milestone 8: Structured scientific-analysis contract
+- [x] 8A: Complete Pydantic analysis schema
+- [x] 8B: Evidence and numerical-result validation
+- [x] 8C: Prompt files, prompt versioning, and fake LLM provider
+- [x] 8D: Invalid-output rejection and repair policy
+
+## Milestones 9-16
+
 - [ ] Milestone 9: Real LLM analysis
 - [ ] Milestone 10: Search and retrieval API
 - [ ] Milestone 11: Discovery, subscriptions, and digest preview
@@ -38,4 +44,4 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 
 ## Current Next Best Step
 
-Implement Milestone 8 before adding live LLM calls: define the strict analysis schema, evidence-reference validation, fake LLM provider, prompt files, and bounded invalid-output repair policy.
+Implement Milestone 9: real provider adapter, evidence selection and prompt assembly, analysis/LLM-run persistence, and analysis API endpoints.
