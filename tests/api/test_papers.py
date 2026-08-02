@@ -17,6 +17,7 @@ from mrinsight.db.models import (
     Paper,
     PaperChunk,
     PaperContent,
+    PaperRelevanceAssessment,
 )
 from mrinsight.main import app
 from mrinsight.papers import (
@@ -403,3 +404,46 @@ def test_chunk_failure_rolls_back_paper_and_content(
     assert paper_count == 0
     assert content_count == 0
     assert chunk_count == 0
+
+
+@pytest.mark.integration
+def test_post_paper_relevance_computes_and_reuses_assessment(
+    paper_client: TestClient,
+    db_session: Session,
+) -> None:
+    ingest_response = paper_client.post(
+        "/papers",
+        json={"doi": "10.1234/MRI.EXAMPLE"},
+    )
+    paper_id = ingest_response.json()["id"]
+
+    first_response = paper_client.post(f"/papers/{paper_id}/relevance")
+    second_response = paper_client.post(f"/papers/{paper_id}/relevance")
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 200
+
+    first_body = first_response.json()
+    second_body = second_response.json()
+
+    assert first_body["cached"] is False
+    assert second_body["cached"] is True
+    assert second_body["id"] == first_body["id"]
+    assert first_body["rule_label"] in {"low", "medium", "high"}
+    assert "mri_general" in first_body["matched_concepts"]
+
+    assessment_count = db_session.scalar(
+        select(func.count()).select_from(PaperRelevanceAssessment)
+    )
+
+    assert assessment_count == 1
+
+
+@pytest.mark.integration
+def test_post_paper_relevance_returns_404_for_missing_paper(
+    paper_client: TestClient,
+) -> None:
+    response = paper_client.post("/papers/999999/relevance")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "The paper does not exist."}

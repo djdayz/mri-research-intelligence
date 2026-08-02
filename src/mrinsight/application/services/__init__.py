@@ -1,3 +1,6 @@
+from mrinsight.application.services.assess_relevance import (
+    AssessPaperRelevanceService,
+)
 from mrinsight.application.services.build_paper_chunks import (
     BuildPaperChunksResult,
     BuildPaperChunksService,
@@ -27,6 +30,7 @@ from mrinsight.application.services.store_abstract_content import (
 
 __all__ = [
     "BibliographicIdentityMismatchError",
+    "AssessPaperRelevanceService",
     "BuildPaperChunksResult",
     "BuildPaperChunksService",
     "ChunkWriteOutcome",
