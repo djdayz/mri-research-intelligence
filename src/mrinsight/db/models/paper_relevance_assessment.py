@@ -68,6 +68,11 @@ class PaperRelevanceAssessment(Base):
             "rule_label",
             "normalized_score",
         ),
+        Index(
+            "ix_paper_relevance_assessments_category_scores_gin",
+            "category_scores",
+            postgresql_using="gin",
+        ),
     )
 
     id: Mapped[int] = mapped_column(

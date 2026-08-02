@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from mrinsight.db.base import Base
@@ -15,6 +15,18 @@ class Paper(Base):
         UniqueConstraint(
             "normalized_doi",
             name="uq_papers_normalized_doi",
+        ),
+        Index(
+            "ix_papers_publication_date",
+            "publication_date",
+        ),
+        Index(
+            "ix_papers_created_at",
+            "created_at",
+        ),
+        Index(
+            "ix_papers_ingestion_source",
+            "ingestion_source",
         ),
     )
 

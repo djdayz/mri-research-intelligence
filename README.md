@@ -15,6 +15,7 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - Versioned MRI/CVR terminology ontology, rule-based relevance scoring, TF-IDF baseline, and cached relevance API.
 - Strict scientific-analysis schema, fake LLM provider contract, OpenAI Responses API adapter, prompt versioning, deterministic evidence selection, evidence validation, and bounded one-repair invalid-output policy.
 - `LLMRun` and `PaperAnalysis` persistence with provider/model/prompt/schema/input checksums, selected chunk IDs, token usage, request IDs, latency, status, validation errors, and cache-aware analysis retrieval.
+- Search and retrieval API for paginated paper lists, paper detail, content metadata, explicit chunk retrieval, filters, stable sorting, and related-resource links.
 
 ## Local Setup
 
@@ -51,6 +52,10 @@ curl -X POST http://localhost:8000/papers \
   -d '{"doi":"10.1234/example"}'
 curl -X POST http://localhost:8000/papers/1/relevance
 curl -X POST http://localhost:8000/papers/1/analysis
+curl 'http://localhost:8000/papers?limit=25&sort=relevance_score&content_scope=abstract'
+curl http://localhost:8000/papers/1
+curl http://localhost:8000/papers/1/contents
+curl 'http://localhost:8000/papers/1/chunks?section=methods'
 curl http://localhost:8000/papers/1/analysis
 curl http://localhost:8000/analyses/1
 ```

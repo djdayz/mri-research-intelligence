@@ -38,9 +38,15 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 - [x] 9C: Analysis and LLM-run persistence
 - [x] 9D: Analysis API
 
-## Milestones 10-16
+## Milestone 10
 
-- [ ] Milestone 10: Search and retrieval API
+- [x] 10A: Paper list and detail endpoints
+- [x] 10B: Pagination, filters, and sorting
+- [x] 10C: Indexes and query optimisation
+- [x] 10D: Retrieval tests and API documentation
+
+## Milestones 11-16
+
 - [ ] Milestone 11: Discovery, subscriptions, and digest preview
 - [ ] Milestone 12: MVP hardening
 - [ ] Phase 13: Real email and scheduling
@@ -50,4 +56,4 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 
 ## Current Next Best Step
 
-Implement Milestone 10: search and retrieval endpoints over persisted papers, content scope, relevance, and analysis availability.
+Implement Milestone 11: discovery, subscriptions, and digest preview.

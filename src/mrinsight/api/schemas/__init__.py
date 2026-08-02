@@ -11,11 +11,29 @@ from mrinsight.api.schemas.papers import (
 from mrinsight.api.schemas.relevance import (
     RelevanceAssessmentResponse,
 )
+from mrinsight.api.schemas.retrieval import (
+    AnalysisSummaryResponse,
+    ContentSummaryResponse,
+    PaperChunkResponse,
+    PaperChunkSearchResponse,
+    PaperDetailResponse,
+    PaperSearchResponse,
+    PaperSummaryResponse,
+    RelevanceSummaryResponse,
+)
 
 __all__ = [
+    "AnalysisSummaryResponse",
+    "ContentSummaryResponse",
     "FullTextUploadResponse",
     "IngestPaperRequest",
     "IngestPaperResponse",
     "PaperAnalysisResponse",
+    "PaperChunkResponse",
+    "PaperChunkSearchResponse",
+    "PaperDetailResponse",
+    "PaperSearchResponse",
+    "PaperSummaryResponse",
     "RelevanceAssessmentResponse",
+    "RelevanceSummaryResponse",
 ]

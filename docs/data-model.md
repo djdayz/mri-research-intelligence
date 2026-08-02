@@ -11,3 +11,10 @@ Current tables:
 - `paper_analyses`: structured analysis records keyed by paper/content identity, content checksum, selected evidence checksum, schema version, provider/model, and prompt version, with validated analysis JSON, validation errors, and status.
 
 JSONB is used for relevance diagnostics, selected chunk IDs, validation errors, and validated analysis payloads because these are structured values converted at repository boundaries.
+
+Retrieval query indexes support the public search API:
+
+- `papers.publication_date`, `papers.created_at`, and `papers.ingestion_source` for date/source filters and stable sorts.
+- `paper_contents.content_type, extraction_status, paper_id` for content-scope and extraction-state filters.
+- `paper_relevance_assessments.rule_label, normalized_score` and a GIN index on `category_scores` for relevance label, score sorting, and category lookup.
+- `paper_analyses.status, analysis_scope, paper_id` for analysis availability filters.
