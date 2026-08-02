@@ -74,12 +74,20 @@ After relevance work, final verification commands are recorded in the final resp
 - Added `POST /papers/{paper_id}/relevance`.
 - Added `py.typed` marker so strict typing applies cleanly to package imports in tests.
 
+## Milestone 8 Additions
+
+- Added strict versioned scientific-analysis schema with evidence-backed text fields, unavailable-information statuses, and typed numerical results.
+- Added persisted-chunk evidence validator checking paper/content identity, chunk identity, sections, page ranges, character offsets, excerpts, abstract/full-text scope, references-section exclusion, and numerical attribution.
+- Added prompt templates with prompt versions and checksums.
+- Added provider-independent LLM request/response records and deterministic fake LLM provider modes for valid output, malformed JSON, schema-invalid output, missing evidence, bad chunk references, scope mismatch, numerical inconsistency, timeout, failure, and repairable malformed JSON.
+- Added bounded generation service: validate first output, perform at most one repair request, validate repaired output, and fail honestly with diagnostics if still invalid.
+
 ## Remaining Major Gaps
 
 The repository is not yet a complete implementation of the full master prompt. Major incomplete areas include:
 
-- Structured LLM analysis schema, fake provider, repair policy, and real provider adapter.
-- Analysis evidence validation and persistence.
+- Real LLM provider adapter.
+- Analysis and LLM-run persistence.
 - Search/list/detail retrieval endpoints.
 - Discovery, subscriptions, digests, delivery providers, and CLI.
 - Concurrency recovery hardening across all duplicate write paths.

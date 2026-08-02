@@ -8,3 +8,4 @@
 - Added PostgreSQL relevance assessment persistence.
 - Added `POST /papers/{paper_id}/relevance`.
 - Added relevance tests and implementation audit/progress documentation.
+- Added strict scientific-analysis schema, evidence validator, prompt templates, fake LLM provider, and bounded repair policy.

@@ -13,6 +13,7 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - PDF upload validation and pypdf extraction boundary with page-aware records.
 - Analysis-content selection preferring successful full text over abstracts.
 - Versioned MRI/CVR terminology ontology, rule-based relevance scoring, TF-IDF baseline, and cached relevance API.
+- Strict scientific-analysis schema, fake LLM provider contract, prompt versioning, evidence validation, and bounded one-repair invalid-output policy.
 
 ## Local Setup
 
@@ -64,4 +65,4 @@ curl -X POST http://localhost:8000/papers/1/full-text \
 - No OCR is implemented.
 - Deterministic relevance is triage logic, not clinical validation.
 - The TF-IDF model is an interpretable baseline trained from caller-provided fixtures, not a clinically validated classifier.
-- LLM analysis, discovery, subscriptions, digests, delivery, Docker, and production deployment are still pending.
+- Real LLM provider calls, analysis persistence/API, discovery, subscriptions, digests, delivery, Docker, and production deployment are still pending.
