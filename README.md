@@ -16,6 +16,7 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - Strict scientific-analysis schema, fake LLM provider contract, OpenAI Responses API adapter, prompt versioning, deterministic evidence selection, evidence validation, and bounded one-repair invalid-output policy.
 - `LLMRun` and `PaperAnalysis` persistence with provider/model/prompt/schema/input checksums, selected chunk IDs, token usage, request IDs, latency, status, validation errors, and cache-aware analysis retrieval.
 - Search and retrieval API for paginated paper lists, paper detail, content metadata, explicit chunk retrieval, filters, stable sorting, and related-resource links.
+- Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, and fake/file/console delivery providers.
 
 ## Local Setup
 
@@ -58,6 +59,14 @@ curl http://localhost:8000/papers/1/contents
 curl 'http://localhost:8000/papers/1/chunks?section=methods'
 curl http://localhost:8000/papers/1/analysis
 curl http://localhost:8000/analyses/1
+curl http://localhost:8000/topics
+curl -X POST http://localhost:8000/subscriptions \
+  -H "content-type: application/json" \
+  -d '{"name":"Weekly MRI CVR","discovery_query":"MRI CVR","topic_ids":[1]}'
+curl -X POST http://localhost:8000/subscriptions/1/digest-preview \
+  -H "content-type: application/json" \
+  -d '{"rows":10}'
+curl http://localhost:8000/digests/1
 ```
 
 PDF upload:
@@ -75,4 +84,5 @@ curl -X POST http://localhost:8000/papers/1/full-text \
 - Deterministic relevance is triage logic, not clinical validation.
 - The TF-IDF model is an interpretable baseline trained from caller-provided fixtures, not a clinically validated classifier.
 - Live LLM calls require `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY`; normal tests use deterministic fakes and do not call live providers.
-- Discovery, subscriptions, digests, delivery, Docker, and production deployment are still pending.
+- Crossref discovery is metadata search and does not represent complete global literature coverage.
+- Real email delivery, Docker, and production deployment are still pending.

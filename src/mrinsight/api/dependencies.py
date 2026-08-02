@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 import httpx
@@ -24,13 +25,16 @@ from mrinsight.application.services import (
     AnalyzePaperService,
     AssessPaperRelevanceService,
     BuildPaperChunksService,
+    CreateSubscriptionService,
     IngestFullTextService,
     IngestPaperService,
+    RunDigestPreviewService,
     SelectAnalysisContentService,
     StoreAbstractContentService,
 )
 from mrinsight.core.config import get_settings
 from mrinsight.db.repositories import (
+    SqlAlchemyDiscoveryRepository,
     SqlAlchemyLLMRunRepository,
     SqlAlchemyPaperAnalysisRepository,
     SqlAlchemyPaperChunkRepository,
@@ -43,6 +47,14 @@ from mrinsight.db.repositories import (
 from mrinsight.db.session import (
     create_database_engine,
     create_session_factory,
+)
+from mrinsight.discovery import (
+    CrossrefDiscoveryProvider,
+    DigestDeliveryProvider,
+    DiscoveryProvider,
+    DiscoveryRepository,
+    FakeDiscoveryProvider,
+    FileDigestDeliveryProvider,
 )
 from mrinsight.documents import PdfUploadPolicy
 from mrinsight.documents.extractors import (
@@ -203,6 +215,17 @@ def get_paper_retrieval_repository(
     return SqlAlchemyPaperRetrievalRepository(session)
 
 
+def get_discovery_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> DiscoveryRepository:
+    """Construct the SQLAlchemy discovery repository."""
+
+    return SqlAlchemyDiscoveryRepository(session)
+
+
 def get_llm_run_repository(
     session: Annotated[
         Session,
@@ -223,6 +246,43 @@ def get_paper_analysis_repository(
     """Construct the SQLAlchemy paper-analysis repository."""
 
     return SqlAlchemyPaperAnalysisRepository(session)
+
+
+@lru_cache
+def get_discovery_provider() -> DiscoveryProvider:
+    """Return the configured discovery provider."""
+
+    settings = get_settings()
+
+    if settings.crossref_mailto:
+        return CrossrefDiscoveryProvider(
+            client=get_http_client(),
+            mailto=settings.crossref_mailto,
+            user_agent=settings.crossref_user_agent,
+            base_url=settings.crossref_base_url,
+            max_attempts=settings.crossref_max_attempts,
+            backoff_seconds=settings.crossref_backoff_seconds,
+        )
+
+    return FakeDiscoveryProvider(())
+
+
+@lru_cache
+def get_digest_delivery_provider() -> DigestDeliveryProvider:
+    """Return the configured digest preview delivery provider."""
+
+    return FileDigestDeliveryProvider(Path("var/digests"))
+
+
+def get_create_subscription_service(
+    repository: Annotated[
+        DiscoveryRepository,
+        Depends(get_discovery_repository),
+    ],
+) -> CreateSubscriptionService:
+    """Construct subscription creation service."""
+
+    return CreateSubscriptionService(repository)
 
 
 @lru_cache
@@ -496,6 +556,44 @@ def get_analyze_paper_service(
     )
 
 
+def get_run_digest_preview_service(
+    discovery_repository: Annotated[
+        DiscoveryRepository,
+        Depends(get_discovery_repository),
+    ],
+    abstract_content_service: Annotated[
+        StoreAbstractContentService,
+        Depends(get_store_abstract_content_service),
+    ],
+    chunk_service: Annotated[
+        BuildPaperChunksService,
+        Depends(get_build_paper_chunks_service),
+    ],
+    relevance_service: Annotated[
+        AssessPaperRelevanceService,
+        Depends(get_assess_paper_relevance_service),
+    ],
+    discovery_provider: Annotated[
+        DiscoveryProvider,
+        Depends(get_discovery_provider),
+    ],
+    delivery_provider: Annotated[
+        DigestDeliveryProvider,
+        Depends(get_digest_delivery_provider),
+    ],
+) -> RunDigestPreviewService:
+    """Construct digest preview workflow service."""
+
+    return RunDigestPreviewService(
+        discovery_repository=discovery_repository,
+        abstract_content_service=abstract_content_service,
+        chunk_service=chunk_service,
+        relevance_service=relevance_service,
+        discovery_provider=discovery_provider,
+        delivery_provider=delivery_provider,
+    )
+
+
 @lru_cache
 def get_http_client() -> httpx.Client:
     """Return the process-wide outbound HTTP client."""
@@ -518,6 +616,8 @@ def close_application_resources() -> None:
 
     get_bibliographic_provider.cache_clear()
     get_analysis_evidence_validator.cache_clear()
+    get_digest_delivery_provider.cache_clear()
+    get_discovery_provider.cache_clear()
     get_llm_provider.cache_clear()
     get_pdf_document_adapter.cache_clear()
     get_rule_based_relevance_scorer.cache_clear()

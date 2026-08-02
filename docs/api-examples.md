@@ -74,3 +74,43 @@ Retrieve explicit evidence chunks:
 ```bash
 curl 'http://localhost:8000/papers/1/chunks?section=methods&limit=50'
 ```
+
+List seeded discovery topics:
+
+```bash
+curl http://localhost:8000/topics
+```
+
+Create a subscription:
+
+```bash
+curl -X POST http://localhost:8000/subscriptions \
+  -H "content-type: application/json" \
+  -d '{"name":"Weekly MRI CVR","discovery_query":"MRI CVR","topic_ids":[1],"minimum_relevance_score":0.2,"digest_cadence":"weekly"}'
+```
+
+List subscriptions:
+
+```bash
+curl http://localhost:8000/subscriptions
+```
+
+Run a manual digest preview:
+
+```bash
+curl -X POST http://localhost:8000/subscriptions/1/digest-preview \
+  -H "content-type: application/json" \
+  -d '{"period_start":"2026-01-01","period_end":"2026-01-31","rows":10}'
+```
+
+Fetch a rendered digest:
+
+```bash
+curl http://localhost:8000/digests/1
+```
+
+CLI digest preview:
+
+```bash
+python -m mrinsight.cli digest run --subscription-id 1 --rows 10
+```

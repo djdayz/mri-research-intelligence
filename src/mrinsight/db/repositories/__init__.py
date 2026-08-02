@@ -2,6 +2,9 @@ from mrinsight.db.repositories.analysis import (
     SqlAlchemyLLMRunRepository,
     SqlAlchemyPaperAnalysisRepository,
 )
+from mrinsight.db.repositories.discovery import (
+    SqlAlchemyDiscoveryRepository,
+)
 from mrinsight.db.repositories.paper import (
     SqlAlchemyPaperRepository,
 )
@@ -28,6 +31,7 @@ __all__ = [
     "SqlAlchemyPaperRepository",
     "SqlAlchemyLLMRunRepository",
     "SqlAlchemyPaperAnalysisRepository",
+    "SqlAlchemyDiscoveryRepository",
     "SqlAlchemyPaperRetrievalRepository",
     "SqlAlchemyRelevanceAssessmentRepository",
 ]
