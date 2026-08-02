@@ -1,6 +1,15 @@
 from mrinsight.api.schemas.analysis import (
     PaperAnalysisResponse,
 )
+from mrinsight.api.schemas.discovery import (
+    DigestPaperResponse,
+    DigestPreviewRequest,
+    DigestPreviewResponse,
+    DigestResponse,
+    SubscriptionCreateRequest,
+    SubscriptionResponse,
+    TopicResponse,
+)
 from mrinsight.api.schemas.full_text import (
     FullTextUploadResponse,
 )
@@ -25,6 +34,10 @@ from mrinsight.api.schemas.retrieval import (
 __all__ = [
     "AnalysisSummaryResponse",
     "ContentSummaryResponse",
+    "DigestPaperResponse",
+    "DigestPreviewRequest",
+    "DigestPreviewResponse",
+    "DigestResponse",
     "FullTextUploadResponse",
     "IngestPaperRequest",
     "IngestPaperResponse",
@@ -36,4 +49,7 @@ __all__ = [
     "PaperSummaryResponse",
     "RelevanceAssessmentResponse",
     "RelevanceSummaryResponse",
+    "SubscriptionCreateRequest",
+    "SubscriptionResponse",
+    "TopicResponse",
 ]

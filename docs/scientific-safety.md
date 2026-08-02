@@ -13,6 +13,8 @@ Current safety controls:
 - Scientific-analysis schema requires evidence for reported and uncertain claims.
 - Analysis evidence validation rejects unknown chunks, wrong content, wrong offsets, unsupported excerpts, abstract/full-text scope mismatch, references-section evidence by default, and numerical values absent from cited text.
 - Analysis persistence records provider/model/prompt/schema/input metadata, selected evidence identity, request status, validation errors, and cache identity.
+- Discovery records provider provenance, DOI/title-year deduplication outcomes, candidate statuses, rank positions, and errors.
+- Digest HTML rendering escapes untrusted paper and provider text, and digest previews do not claim Crossref or any provider has complete literature coverage.
 
 Known limits:
 
@@ -20,3 +22,4 @@ Known limits:
 - OCR is not implemented.
 - Deterministic relevance is not clinical validation.
 - Live LLM calls require a configured provider and API key; normal automated tests use deterministic fakes.
+- Crossref discovery is metadata search with incomplete abstract and coverage availability.

@@ -22,6 +22,11 @@ from mrinsight.application.services.ingest_paper import (
     IngestPaperResult,
     IngestPaperService,
 )
+from mrinsight.application.services.run_digest_preview import (
+    CreateSubscriptionService,
+    RunDigestPreviewService,
+    SubscriptionNotFoundError,
+)
 from mrinsight.application.services.select_analysis_content import (
     NoAnalyzableContentError,
     SelectAnalysisContentService,
@@ -42,6 +47,7 @@ __all__ = [
     "BuildPaperChunksService",
     "ChunkWriteOutcome",
     "ContentWriteOutcome",
+    "CreateSubscriptionService",
     "FullTextIngestionOutcome",
     "IngestFullTextResult",
     "IngestFullTextService",
@@ -54,4 +60,6 @@ __all__ = [
     "SelectedAnalysisContent",
     "StoreAbstractContentResult",
     "StoreAbstractContentService",
+    "RunDigestPreviewService",
+    "SubscriptionNotFoundError",
 ]

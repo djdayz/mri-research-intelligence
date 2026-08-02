@@ -45,9 +45,15 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 - [x] 10C: Indexes and query optimisation
 - [x] 10D: Retrieval tests and API documentation
 
-## Milestones 11-16
+## Milestone 11
 
-- [ ] Milestone 11: Discovery, subscriptions, and digest preview
+- [x] 11A: Topic and subscription models
+- [x] 11B: Discovery, deduplication, and ranking
+- [x] 11C: Digest generation and preview delivery
+- [x] 11D: Manual digest API and CLI
+
+## Milestones 12-16
+
 - [ ] Milestone 12: MVP hardening
 - [ ] Phase 13: Real email and scheduling
 - [ ] Phase 14: LLM evaluation and advanced observability
@@ -56,4 +62,4 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 
 ## Current Next Best Step
 
-Implement Milestone 11: discovery, subscriptions, and digest preview.
+Implement Milestone 12: MVP hardening.
