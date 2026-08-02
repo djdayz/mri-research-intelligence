@@ -12,10 +12,12 @@ dependencies = [
     "alembic>=1.16,<2.0",
     "fastapi>=0.115,<1.0",
     "httpx>=0.28,<1.0",
+    "numpy>=2.2,<2.3",
     "psycopg[binary]>=3.2,<4.0",
     "pydantic-settings>=2.7,<3.0",
     "pypdf>=6.14,<7.0",
     "python-multipart>=0.0.32,<1.0",
+    "scikit-learn>=1.7,<2.0",
     "sqlalchemy>=2.0,<3.0",
     "uvicorn[standard]>=0.34,<1.0",
 ]

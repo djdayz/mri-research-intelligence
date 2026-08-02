@@ -8,6 +8,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from mrinsight.application.services import (
+    AssessPaperRelevanceService,
     BuildPaperChunksService,
     IngestFullTextService,
     IngestPaperService,
@@ -20,6 +21,7 @@ from mrinsight.db.repositories import (
     SqlAlchemyPaperContentPageRepository,
     SqlAlchemyPaperContentRepository,
     SqlAlchemyPaperRepository,
+    SqlAlchemyRelevanceAssessmentRepository,
 )
 from mrinsight.db.session import (
     create_database_engine,
@@ -42,6 +44,8 @@ from mrinsight.papers.repositories import (
     PaperContentRepository,
     PaperRepository,
 )
+from mrinsight.relevance import RuleBasedRelevanceScorer
+from mrinsight.relevance.repositories import RelevanceAssessmentRepository
 
 
 @lru_cache
@@ -157,6 +161,24 @@ def get_paper_chunk_repository(
     """Construct the SQLAlchemy chunk repository."""
 
     return SqlAlchemyPaperChunkRepository(session)
+
+
+def get_relevance_assessment_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> RelevanceAssessmentRepository:
+    """Construct the SQLAlchemy relevance-assessment repository."""
+
+    return SqlAlchemyRelevanceAssessmentRepository(session)
+
+
+@lru_cache
+def get_rule_based_relevance_scorer() -> RuleBasedRelevanceScorer:
+    """Return the process-wide deterministic relevance scorer."""
+
+    return RuleBasedRelevanceScorer()
 
 
 def get_build_paper_chunks_service(
@@ -281,6 +303,39 @@ def get_ingest_paper_service(
     )
 
 
+def get_assess_paper_relevance_service(
+    paper_repository: Annotated[
+        PaperRepository,
+        Depends(get_paper_repository),
+    ],
+    content_selector: Annotated[
+        SelectAnalysisContentService,
+        Depends(get_select_analysis_content_service),
+    ],
+    chunk_repository: Annotated[
+        PaperChunkRepository,
+        Depends(get_paper_chunk_repository),
+    ],
+    assessment_repository: Annotated[
+        RelevanceAssessmentRepository,
+        Depends(get_relevance_assessment_repository),
+    ],
+    scorer: Annotated[
+        RuleBasedRelevanceScorer,
+        Depends(get_rule_based_relevance_scorer),
+    ],
+) -> AssessPaperRelevanceService:
+    """Construct the relevance assessment service."""
+
+    return AssessPaperRelevanceService(
+        paper_repository=paper_repository,
+        content_selector=content_selector,
+        chunk_repository=chunk_repository,
+        assessment_repository=assessment_repository,
+        scorer=scorer,
+    )
+
+
 @lru_cache
 def get_http_client() -> httpx.Client:
     """Return the process-wide outbound HTTP client."""
@@ -303,6 +358,7 @@ def close_application_resources() -> None:
 
     get_bibliographic_provider.cache_clear()
     get_pdf_document_adapter.cache_clear()
+    get_rule_based_relevance_scorer.cache_clear()
 
     if get_http_client.cache_info().currsize:
         get_http_client().close()

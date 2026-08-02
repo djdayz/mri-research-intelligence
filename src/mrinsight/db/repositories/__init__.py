@@ -10,10 +10,14 @@ from mrinsight.db.repositories.paper_content import (
 from mrinsight.db.repositories.paper_content_page import (
     SqlAlchemyPaperContentPageRepository,
 )
+from mrinsight.db.repositories.relevance import (
+    SqlAlchemyRelevanceAssessmentRepository,
+)
 
 __all__ = [
     "SqlAlchemyPaperChunkRepository",
     "SqlAlchemyPaperContentPageRepository",
     "SqlAlchemyPaperContentRepository",
     "SqlAlchemyPaperRepository",
+    "SqlAlchemyRelevanceAssessmentRepository",
 ]

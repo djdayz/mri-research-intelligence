@@ -15,6 +15,9 @@ from mrinsight.api.routers.health import (
 from mrinsight.api.routers.papers import (
     router as papers_router,
 )
+from mrinsight.api.routers.relevance import (
+    router as relevance_router,
+)
 from mrinsight.core.config import get_settings
 
 
@@ -46,6 +49,7 @@ def create_app() -> FastAPI:
     application.include_router(health_router)
     application.include_router(papers_router)
     application.include_router(full_text_router)
+    application.include_router(relevance_router)
 
     return application
 
