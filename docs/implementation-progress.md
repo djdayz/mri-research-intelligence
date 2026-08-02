@@ -31,9 +31,15 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 - [x] 8C: Prompt files, prompt versioning, and fake LLM provider
 - [x] 8D: Invalid-output rejection and repair policy
 
-## Milestones 9-16
+## Milestone 9
 
-- [ ] Milestone 9: Real LLM analysis
+- [x] 9A: Real LLM provider adapter
+- [x] 9B: Evidence ranking and prompt assembly
+- [x] 9C: Analysis and LLM-run persistence
+- [x] 9D: Analysis API
+
+## Milestones 10-16
+
 - [ ] Milestone 10: Search and retrieval API
 - [ ] Milestone 11: Discovery, subscriptions, and digest preview
 - [ ] Milestone 12: MVP hardening
@@ -44,4 +50,4 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 
 ## Current Next Best Step
 
-Implement Milestone 9: real provider adapter, evidence selection and prompt assembly, analysis/LLM-run persistence, and analysis API endpoints.
+Implement Milestone 10: search and retrieval endpoints over persisted papers, content scope, relevance, and analysis availability.

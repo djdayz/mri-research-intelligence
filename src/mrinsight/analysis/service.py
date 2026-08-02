@@ -97,7 +97,7 @@ class GeneratePaperAnalysisService:
                 final_provider_response=None,
             )
 
-        request = self._build_request(
+        request = self.build_request(
             paper=paper,
             content=content,
             analysis_scope=analysis_scope,
@@ -177,7 +177,7 @@ class GeneratePaperAnalysisService:
             final_provider_response=repair_response,
         )
 
-    def _build_request(
+    def build_request(
         self,
         *,
         paper: StoredPaper,
@@ -185,7 +185,7 @@ class GeneratePaperAnalysisService:
         analysis_scope: AnalysisScope,
         chunks: tuple[StoredPaperChunk, ...],
     ) -> LLMRequest:
-        """Build the first-pass LLM request."""
+        """Build reproducible first-pass LLM request metadata."""
 
         prompt = load_analysis_prompt()
         llm_chunks = tuple(_to_llm_chunk(chunk) for chunk in chunks)

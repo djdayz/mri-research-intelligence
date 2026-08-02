@@ -58,6 +58,23 @@ class Settings(BaseSettings):
         ge=1,
     )
 
+    llm_provider: Literal["unconfigured", "fake", "openai"] = "unconfigured"
+    llm_api_key: str | None = None
+    llm_model: str = "gpt-5.6"
+    llm_timeout_seconds: float = Field(
+        default=45.0,
+        gt=0,
+    )
+    llm_max_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+    )
+    llm_prompt_budget_tokens: int = Field(
+        default=1600,
+        ge=1,
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

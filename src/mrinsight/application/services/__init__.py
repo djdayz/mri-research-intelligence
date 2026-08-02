@@ -1,3 +1,8 @@
+from mrinsight.application.services.analyze_paper import (
+    AnalyzePaperResult,
+    AnalyzePaperService,
+    PaperAnalysisOutcome,
+)
 from mrinsight.application.services.assess_relevance import (
     AssessPaperRelevanceService,
 )
@@ -29,6 +34,8 @@ from mrinsight.application.services.store_abstract_content import (
 )
 
 __all__ = [
+    "AnalyzePaperResult",
+    "AnalyzePaperService",
     "BibliographicIdentityMismatchError",
     "AssessPaperRelevanceService",
     "BuildPaperChunksResult",
@@ -41,6 +48,7 @@ __all__ = [
     "IngestPaperResult",
     "IngestPaperService",
     "NoAnalyzableContentError",
+    "PaperAnalysisOutcome",
     "PaperNotFoundError",
     "SelectAnalysisContentService",
     "SelectedAnalysisContent",

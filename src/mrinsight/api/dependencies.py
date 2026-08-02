@@ -7,7 +7,21 @@ from fastapi import Depends
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from mrinsight.analysis import (
+    AnalysisEvidenceValidator,
+    EvidenceSelectionService,
+    FakeLLMProvider,
+    GeneratePaperAnalysisService,
+    LLMProvider,
+    OpenAIResponsesLLMProvider,
+    UnconfiguredLLMProvider,
+)
+from mrinsight.analysis.repositories import (
+    LLMRunRepository,
+    PaperAnalysisRepository,
+)
 from mrinsight.application.services import (
+    AnalyzePaperService,
     AssessPaperRelevanceService,
     BuildPaperChunksService,
     IngestFullTextService,
@@ -17,6 +31,8 @@ from mrinsight.application.services import (
 )
 from mrinsight.core.config import get_settings
 from mrinsight.db.repositories import (
+    SqlAlchemyLLMRunRepository,
+    SqlAlchemyPaperAnalysisRepository,
     SqlAlchemyPaperChunkRepository,
     SqlAlchemyPaperContentPageRepository,
     SqlAlchemyPaperContentRepository,
@@ -172,6 +188,28 @@ def get_relevance_assessment_repository(
     """Construct the SQLAlchemy relevance-assessment repository."""
 
     return SqlAlchemyRelevanceAssessmentRepository(session)
+
+
+def get_llm_run_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> LLMRunRepository:
+    """Construct the SQLAlchemy LLM-run repository."""
+
+    return SqlAlchemyLLMRunRepository(session)
+
+
+def get_paper_analysis_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> PaperAnalysisRepository:
+    """Construct the SQLAlchemy paper-analysis repository."""
+
+    return SqlAlchemyPaperAnalysisRepository(session)
 
 
 @lru_cache
@@ -337,6 +375,115 @@ def get_assess_paper_relevance_service(
 
 
 @lru_cache
+def get_analysis_evidence_validator() -> AnalysisEvidenceValidator:
+    """Return the process-wide analysis evidence validator."""
+
+    return AnalysisEvidenceValidator()
+
+
+@lru_cache
+def get_llm_provider() -> LLMProvider:
+    """Return the configured LLM provider."""
+
+    settings = get_settings()
+
+    if settings.llm_provider == "fake":
+        return FakeLLMProvider(model_identifier=settings.llm_model)
+
+    if settings.llm_provider == "openai" and settings.llm_api_key:
+        return OpenAIResponsesLLMProvider(
+            api_key=settings.llm_api_key,
+            model_identifier=settings.llm_model,
+            timeout_seconds=settings.llm_timeout_seconds,
+            max_retries=settings.llm_max_retries,
+        )
+
+    return UnconfiguredLLMProvider()
+
+
+def get_evidence_selection_service() -> EvidenceSelectionService:
+    """Construct the deterministic evidence selector."""
+
+    settings = get_settings()
+
+    return EvidenceSelectionService(
+        max_prompt_tokens=settings.llm_prompt_budget_tokens,
+    )
+
+
+def get_generate_paper_analysis_service(
+    provider: Annotated[
+        LLMProvider,
+        Depends(get_llm_provider),
+    ],
+    validator: Annotated[
+        AnalysisEvidenceValidator,
+        Depends(get_analysis_evidence_validator),
+    ],
+) -> GeneratePaperAnalysisService:
+    """Construct the structured analysis generator."""
+
+    settings = get_settings()
+
+    return GeneratePaperAnalysisService(
+        provider=provider,
+        validator=validator,
+        model_identifier=settings.llm_model,
+    )
+
+
+def get_analyze_paper_service(
+    paper_repository: Annotated[
+        PaperRepository,
+        Depends(get_paper_repository),
+    ],
+    content_selector: Annotated[
+        SelectAnalysisContentService,
+        Depends(get_select_analysis_content_service),
+    ],
+    chunk_repository: Annotated[
+        PaperChunkRepository,
+        Depends(get_paper_chunk_repository),
+    ],
+    analysis_repository: Annotated[
+        PaperAnalysisRepository,
+        Depends(get_paper_analysis_repository),
+    ],
+    llm_run_repository: Annotated[
+        LLMRunRepository,
+        Depends(get_llm_run_repository),
+    ],
+    evidence_selector: Annotated[
+        EvidenceSelectionService,
+        Depends(get_evidence_selection_service),
+    ],
+    generation_service: Annotated[
+        GeneratePaperAnalysisService,
+        Depends(get_generate_paper_analysis_service),
+    ],
+    provider: Annotated[
+        LLMProvider,
+        Depends(get_llm_provider),
+    ],
+) -> AnalyzePaperService:
+    """Construct the paper-analysis orchestration service."""
+
+    settings = get_settings()
+
+    return AnalyzePaperService(
+        paper_repository=paper_repository,
+        content_selector=content_selector,
+        chunk_repository=chunk_repository,
+        analysis_repository=analysis_repository,
+        llm_run_repository=llm_run_repository,
+        evidence_selector=evidence_selector,
+        generation_service=generation_service,
+        provider_name=provider.name,
+        model_identifier=settings.llm_model,
+    )
+
+
+@lru_cache
 def get_http_client() -> httpx.Client:
     """Return the process-wide outbound HTTP client."""
 
@@ -357,6 +504,8 @@ def close_application_resources() -> None:
     """Close process-wide database and HTTP resources."""
 
     get_bibliographic_provider.cache_clear()
+    get_analysis_evidence_validator.cache_clear()
+    get_llm_provider.cache_clear()
     get_pdf_document_adapter.cache_clear()
     get_rule_based_relevance_scorer.cache_clear()
 
