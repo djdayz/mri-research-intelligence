@@ -54,6 +54,12 @@ class PaperAnalysis(Base):
             "paper_id",
             "status",
         ),
+        Index(
+            "ix_paper_analyses_status_scope_paper",
+            "status",
+            "analysis_scope",
+            "paper_id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

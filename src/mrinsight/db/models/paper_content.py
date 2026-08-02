@@ -92,6 +92,12 @@ class PaperContent(Base):
             "ix_paper_contents_source_sha256",
             "source_sha256",
         ),
+        Index(
+            "ix_paper_contents_type_status_paper",
+            "content_type",
+            "extraction_status",
+            "paper_id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(

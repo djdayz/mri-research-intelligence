@@ -37,6 +37,7 @@ from mrinsight.db.repositories import (
     SqlAlchemyPaperContentPageRepository,
     SqlAlchemyPaperContentRepository,
     SqlAlchemyPaperRepository,
+    SqlAlchemyPaperRetrievalRepository,
     SqlAlchemyRelevanceAssessmentRepository,
 )
 from mrinsight.db.session import (
@@ -62,6 +63,7 @@ from mrinsight.papers.repositories import (
 )
 from mrinsight.relevance import RuleBasedRelevanceScorer
 from mrinsight.relevance.repositories import RelevanceAssessmentRepository
+from mrinsight.retrieval import PaperRetrievalRepository
 
 
 @lru_cache
@@ -188,6 +190,17 @@ def get_relevance_assessment_repository(
     """Construct the SQLAlchemy relevance-assessment repository."""
 
     return SqlAlchemyRelevanceAssessmentRepository(session)
+
+
+def get_paper_retrieval_repository(
+    session: Annotated[
+        Session,
+        Depends(get_db_session),
+    ],
+) -> PaperRetrievalRepository:
+    """Construct the SQLAlchemy paper-retrieval repository."""
+
+    return SqlAlchemyPaperRetrievalRepository(session)
 
 
 def get_llm_run_repository(
