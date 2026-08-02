@@ -97,10 +97,14 @@ class EvidenceBackedText(BaseModel):
     def require_evidence_for_reported_claims(self) -> Self:
         """Require evidence for reported or uncertain scientific claims."""
 
-        if self.status in {
-            InformationStatus.REPORTED,
-            InformationStatus.UNCERTAIN,
-        } and not self.evidence_references:
+        if (
+            self.status
+            in {
+                InformationStatus.REPORTED,
+                InformationStatus.UNCERTAIN,
+            }
+            and not self.evidence_references
+        ):
             raise ValueError("Reported or uncertain claims require evidence.")
 
         return self
