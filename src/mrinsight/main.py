@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from mrinsight.api.dependencies import (
     close_application_resources,
 )
+from mrinsight.api.routers.analysis import (
+    router as analysis_router,
+)
 from mrinsight.api.routers.full_text import (
     router as full_text_router,
 )
@@ -50,6 +53,7 @@ def create_app() -> FastAPI:
     application.include_router(papers_router)
     application.include_router(full_text_router)
     application.include_router(relevance_router)
+    application.include_router(analysis_router)
 
     return application
 

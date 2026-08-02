@@ -1,8 +1,8 @@
 # MRInsight
 
-MRInsight is an MRI-focused research intelligence API. It ingests papers by DOI, stores bibliographic provenance, persists abstract and permitted PDF full text, creates section-aware evidence chunks, and now computes deterministic MRI/CVR relevance assessments.
+MRInsight is an MRI-focused research intelligence API. It ingests papers by DOI, stores bibliographic provenance, persists abstract and permitted PDF full text, creates section-aware evidence chunks, computes deterministic MRI/CVR relevance assessments, and generates structured evidence-linked analyses through a configurable LLM provider.
 
-The project is intentionally evidence-first. Abstract-only content is kept distinct from full-text evidence, uploaded PDFs are validated rather than scraped, and deterministic extraction/chunking/relevance happens before any future LLM analysis.
+The project is intentionally evidence-first. Abstract-only content is kept distinct from full-text evidence, uploaded PDFs are validated rather than scraped, and deterministic extraction/chunking/evidence selection happens before LLM analysis.
 
 ## Current Capabilities
 
@@ -13,7 +13,8 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - PDF upload validation and pypdf extraction boundary with page-aware records.
 - Analysis-content selection preferring successful full text over abstracts.
 - Versioned MRI/CVR terminology ontology, rule-based relevance scoring, TF-IDF baseline, and cached relevance API.
-- Strict scientific-analysis schema, fake LLM provider contract, prompt versioning, evidence validation, and bounded one-repair invalid-output policy.
+- Strict scientific-analysis schema, fake LLM provider contract, OpenAI Responses API adapter, prompt versioning, deterministic evidence selection, evidence validation, and bounded one-repair invalid-output policy.
+- `LLMRun` and `PaperAnalysis` persistence with provider/model/prompt/schema/input checksums, selected chunk IDs, token usage, request IDs, latency, status, validation errors, and cache-aware analysis retrieval.
 
 ## Local Setup
 
@@ -49,6 +50,9 @@ curl -X POST http://localhost:8000/papers \
   -H "content-type: application/json" \
   -d '{"doi":"10.1234/example"}'
 curl -X POST http://localhost:8000/papers/1/relevance
+curl -X POST http://localhost:8000/papers/1/analysis
+curl http://localhost:8000/papers/1/analysis
+curl http://localhost:8000/analyses/1
 ```
 
 PDF upload:
@@ -65,4 +69,5 @@ curl -X POST http://localhost:8000/papers/1/full-text \
 - No OCR is implemented.
 - Deterministic relevance is triage logic, not clinical validation.
 - The TF-IDF model is an interpretable baseline trained from caller-provided fixtures, not a clinically validated classifier.
-- Real LLM provider calls, analysis persistence/API, discovery, subscriptions, digests, delivery, Docker, and production deployment are still pending.
+- Live LLM calls require `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY`; normal tests use deterministic fakes and do not call live providers.
+- Discovery, subscriptions, digests, delivery, Docker, and production deployment are still pending.

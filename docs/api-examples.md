@@ -26,3 +26,21 @@ Compute or retrieve deterministic relevance:
 ```bash
 curl -X POST http://localhost:8000/papers/1/relevance
 ```
+
+Compute or retrieve structured analysis:
+
+```bash
+curl -X POST http://localhost:8000/papers/1/analysis
+```
+
+List analyses for a paper:
+
+```bash
+curl http://localhost:8000/papers/1/analysis
+```
+
+Fetch one analysis:
+
+```bash
+curl http://localhost:8000/analyses/1
+```

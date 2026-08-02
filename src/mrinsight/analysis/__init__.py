@@ -1,3 +1,11 @@
+from mrinsight.analysis.evidence_selection import (
+    EVIDENCE_SELECTOR_VERSION,
+    AnalysisFocus,
+    EvidenceSelectionService,
+    SelectedEvidence,
+    build_selection_checksum,
+    estimate_prompt_tokens,
+)
 from mrinsight.analysis.llm import (
     FakeLLMMode,
     FakeLLMProvider,
@@ -8,6 +16,8 @@ from mrinsight.analysis.llm import (
     LLMProviderUnavailableError,
     LLMRequest,
     LLMResponse,
+    OpenAIResponsesLLMProvider,
+    UnconfiguredLLMProvider,
 )
 from mrinsight.analysis.schema import (
     ANALYSIS_SCHEMA_VERSION,
@@ -34,11 +44,14 @@ __all__ = [
     "ANALYSIS_SCHEMA_VERSION",
     "AnalysisEvidenceValidationResult",
     "AnalysisEvidenceValidator",
+    "AnalysisFocus",
     "AnalysisGenerationResult",
     "AnalysisGenerationStatus",
+    "EVIDENCE_SELECTOR_VERSION",
     "EvidenceBackedText",
     "EvidenceReference",
     "EvidenceRole",
+    "EvidenceSelectionService",
     "FakeLLMMode",
     "FakeLLMProvider",
     "GeneratePaperAnalysisService",
@@ -50,8 +63,13 @@ __all__ = [
     "LLMProviderUnavailableError",
     "LLMRequest",
     "LLMResponse",
+    "OpenAIResponsesLLMProvider",
     "NumericalResult",
     "ResultDirection",
+    "SelectedEvidence",
     "ScientificPaperAnalysis",
+    "UnconfiguredLLMProvider",
+    "build_selection_checksum",
     "build_unavailable_statement",
+    "estimate_prompt_tokens",
 ]

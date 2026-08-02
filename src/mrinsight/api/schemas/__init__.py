@@ -1,3 +1,6 @@
+from mrinsight.api.schemas.analysis import (
+    PaperAnalysisResponse,
+)
 from mrinsight.api.schemas.full_text import (
     FullTextUploadResponse,
 )
@@ -13,5 +16,6 @@ __all__ = [
     "FullTextUploadResponse",
     "IngestPaperRequest",
     "IngestPaperResponse",
+    "PaperAnalysisResponse",
     "RelevanceAssessmentResponse",
 ]

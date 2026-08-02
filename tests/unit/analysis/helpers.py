@@ -56,19 +56,21 @@ def make_content(
 
 def make_chunk(
     *,
+    chunk_id: int = 3,
     section: SectionType = SectionType.METHODS,
+    sequence_number: int = 1,
     text: str = "MRI methods reported 2.5 units.",
 ) -> StoredPaperChunk:
     """Create a stored evidence chunk for analysis tests."""
 
     now = datetime.now(tz=UTC)
     return StoredPaperChunk(
-        id=3,
+        id=chunk_id,
         paper_id=1,
         paper_content_id=2,
         section_type=section,
         heading="Methods",
-        sequence_number=1,
+        sequence_number=sequence_number,
         text=text,
         start_char=0,
         end_char=len(text),

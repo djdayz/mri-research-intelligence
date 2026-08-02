@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from importlib import import_module
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
 from mrinsight.analysis.schema import (
@@ -30,6 +32,29 @@ class LLMProviderTimeoutError(LLMProviderError):
 
 class LLMProviderUnavailableError(LLMProviderError):
     """Raised when an LLM provider fails before producing a response."""
+
+
+class UnconfiguredLLMProvider:
+    """LLM provider that fails clearly when credentials are absent."""
+
+    @property
+    def name(self) -> str:
+        """Return the provider name."""
+
+        return "unconfigured"
+
+    def complete(
+        self,
+        request: LLMRequest,
+    ) -> LLMResponse:
+        """Fail because no live LLM provider is configured."""
+
+        del request
+
+        raise LLMProviderUnavailableError(
+            "No LLM provider is configured. Set MRINSIGHT_LLM_PROVIDER and "
+            "MRINSIGHT_LLM_API_KEY for live analysis."
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,3 +293,113 @@ class FakeLLMProvider:
             sort_keys=True,
             separators=(",", ":"),
         )
+
+
+class OpenAIResponsesLLMProvider:
+    """OpenAI Responses API adapter using structured Pydantic output."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model_identifier: str,
+        timeout_seconds: float,
+        max_retries: int,
+        client: Any | None = None,
+    ) -> None:
+        if not api_key:
+            raise ValueError("api_key must be provided for OpenAI LLM provider.")
+
+        self._model_identifier = model_identifier
+        self._client = client or _build_openai_client(
+            api_key=api_key,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+        )
+
+    @property
+    def name(self) -> str:
+        """Return the provider name."""
+
+        return "openai"
+
+    def complete(
+        self,
+        request: LLMRequest,
+    ) -> LLMResponse:
+        """Call the OpenAI Responses API and return raw JSON text."""
+
+        started = time.perf_counter()
+
+        try:
+            response = self._client.responses.parse(
+                model=self._model_identifier,
+                input=[
+                    {
+                        "role": "system",
+                        "content": request.system_prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": request.user_prompt,
+                    },
+                ],
+                text_format=ScientificPaperAnalysis,
+            )
+        except TimeoutError as error:
+            raise LLMProviderTimeoutError("OpenAI provider timed out.") from error
+        except Exception as error:
+            if error.__class__.__name__ in {
+                "APITimeoutError",
+                "TimeoutException",
+            }:
+                raise LLMProviderTimeoutError("OpenAI provider timed out.") from error
+            raise LLMProviderUnavailableError(
+                f"OpenAI provider failed: {error.__class__.__name__}"
+            ) from error
+
+        latency_ms = round((time.perf_counter() - started) * 1000)
+        raw_text = _extract_openai_raw_text(response)
+        usage = getattr(response, "usage", None)
+
+        return LLMResponse(
+            provider_name=self.name,
+            model_identifier=self._model_identifier,
+            raw_text=raw_text,
+            provider_request_id=cast(str | None, getattr(response, "id", None)),
+            input_tokens=cast(int | None, getattr(usage, "input_tokens", None)),
+            output_tokens=cast(int | None, getattr(usage, "output_tokens", None)),
+            latency_ms=latency_ms,
+        )
+
+
+def _build_openai_client(
+    *,
+    api_key: str,
+    timeout_seconds: float,
+    max_retries: int,
+) -> Any:
+    """Build the official OpenAI SDK client lazily."""
+
+    openai_module = import_module("openai")
+    return openai_module.OpenAI(
+        api_key=api_key,
+        timeout=timeout_seconds,
+        max_retries=max_retries,
+    )
+
+
+def _extract_openai_raw_text(
+    response: Any,
+) -> str:
+    """Extract JSON text from an OpenAI structured response."""
+
+    parsed = getattr(response, "output_parsed", None)
+    if isinstance(parsed, ScientificPaperAnalysis):
+        return parsed.model_dump_json()
+
+    output_text = getattr(response, "output_text", None)
+    if isinstance(output_text, str) and output_text:
+        return output_text
+
+    raise LLMProviderUnavailableError("OpenAI response did not contain output text.")
