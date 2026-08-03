@@ -17,6 +17,7 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - `LLMRun` and `PaperAnalysis` persistence with provider/model/prompt/schema/input checksums, selected chunk IDs, token usage, request IDs, latency, status, validation errors, and cache-aware analysis retrieval.
 - Search and retrieval API for paginated paper lists, paper detail, content metadata, explicit chunk retrieval, filters, stable sorting, and related-resource links.
 - Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, and fake/file/console delivery providers.
+- MVP hardening for duplicate insert recovery, digest idempotency, request correlation IDs, structured JSON logs, readiness checks, and a public API E2E workflow.
 
 ## Local Setup
 
@@ -26,6 +27,7 @@ set -a
 source .env
 set +a
 python -m alembic upgrade head
+python -m mrinsight.cli seed demo
 python -m uvicorn mrinsight.main:app --reload
 ```
 
@@ -44,10 +46,21 @@ python -m alembic check
 
 Integration tests require PostgreSQL and `MRINSIGHT_TEST_DATABASE_URL`.
 
+CI runs these checks on Python 3.11 after applying migrations and verifying the Alembic head. Local development in this checkout has also been verified with `.venv/bin/python`.
+
+## Operations
+
+`GET /health` is a liveness check for the API process. `GET /ready` verifies database connectivity and should be used before demos or deployment traffic. Every response includes an `x-request-id` header; callers may supply one, otherwise the API creates it.
+
+Application logs are single-line JSON events. The API logs request completion without request bodies, and the discovery/digest/analysis paths log provider name, status, duration, and compact non-secret identifiers.
+
+Repository writes that have natural uniqueness constraints recover from duplicate insert races through a savepoint and re-query the existing row. This is used for papers, content, chunks, relevance assessments, successful analysis cache rows, digests, and digest deliveries. Failed analyses remain retryable.
+
 ## API Examples
 
 ```bash
 curl http://localhost:8000/health
+curl http://localhost:8000/ready
 curl -X POST http://localhost:8000/papers \
   -H "content-type: application/json" \
   -d '{"doi":"10.1234/example"}'

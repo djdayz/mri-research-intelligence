@@ -213,6 +213,7 @@ class Digest(Base):
     __tablename__ = "digests"
 
     __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_digests_idempotency_key"),
         CheckConstraint(
             "status IN ('generated', 'failed')",
             name="ck_digests_supported_status",
@@ -221,6 +222,7 @@ class Digest(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     subscription_id: Mapped[int] = mapped_column(
         ForeignKey("subscriptions.id", ondelete="CASCADE"),
         nullable=False,

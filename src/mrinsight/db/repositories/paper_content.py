@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from mrinsight.db.models import PaperContent
+from mrinsight.db.repositories.conflicts import add_with_conflict_recovery
 from mrinsight.papers.content import (
     ContentType,
     ExtractionStatus,
@@ -46,29 +47,40 @@ class SqlAlchemyPaperContentRepository:
     ) -> StoredPaperContent:
         """Insert content and flush without committing."""
 
-        model = PaperContent(
-            paper_id=content.paper_id,
-            content_type=content.content_type.value,
-            extraction_status=(content.extraction_status.value),
-            extracted_text=content.extracted_text,
-            parser_version=content.parser_version,
-            checksum=content.checksum,
-            source_filename=content.source_filename,
-            source_media_type=content.source_media_type,
-            source_sha256=content.source_sha256,
-            access_basis=content.access_basis,
-            page_count=content.page_count,
-            text_page_count=content.text_page_count,
-            extractor_name=content.extractor_name,
-            extractor_library_version=(content.extractor_library_version),
-            extraction_error=content.extraction_error,
+        def insert() -> StoredPaperContent:
+            model = PaperContent(
+                paper_id=content.paper_id,
+                content_type=content.content_type.value,
+                extraction_status=(content.extraction_status.value),
+                extracted_text=content.extracted_text,
+                parser_version=content.parser_version,
+                checksum=content.checksum,
+                source_filename=content.source_filename,
+                source_media_type=content.source_media_type,
+                source_sha256=content.source_sha256,
+                access_basis=content.access_basis,
+                page_count=content.page_count,
+                text_page_count=content.text_page_count,
+                extractor_name=content.extractor_name,
+                extractor_library_version=(content.extractor_library_version),
+                extraction_error=content.extraction_error,
+            )
+
+            self._session.add(model)
+            self._session.flush()
+            self._session.refresh(model)
+
+            return self._to_stored_content(model)
+
+        return add_with_conflict_recovery(
+            self._session,
+            insert=insert,
+            recover=lambda: self.get_by_paper_and_type(
+                content.paper_id,
+                content.content_type,
+            ),
+            message="A duplicate paper-content insert could not be recovered.",
         )
-
-        self._session.add(model)
-        self._session.flush()
-        self._session.refresh(model)
-
-        return self._to_stored_content(model)
 
     def update_extraction(
         self,

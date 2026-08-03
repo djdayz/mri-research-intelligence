@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from mrinsight.db.models import Paper
+from mrinsight.db.repositories.conflicts import add_with_conflict_recovery
 from mrinsight.papers.records import NewPaper, StoredPaper
 
 
@@ -48,24 +49,35 @@ class SqlAlchemyPaperRepository:
     ) -> StoredPaper:
         """Add a paper and flush it without committing."""
 
-        model = Paper(
-            doi=paper.doi,
-            normalized_doi=paper.normalized_doi,
-            title=paper.title,
-            normalized_title=paper.normalized_title,
-            abstract=paper.abstract,
-            journal=paper.journal,
-            publication_date=paper.publication_date,
-            source_url=paper.source_url,
-            ingestion_source=paper.ingestion_source,
-            provider_record_id=paper.provider_record_id,
+        def insert() -> StoredPaper:
+            model = Paper(
+                doi=paper.doi,
+                normalized_doi=paper.normalized_doi,
+                title=paper.title,
+                normalized_title=paper.normalized_title,
+                abstract=paper.abstract,
+                journal=paper.journal,
+                publication_date=paper.publication_date,
+                source_url=paper.source_url,
+                ingestion_source=paper.ingestion_source,
+                provider_record_id=paper.provider_record_id,
+            )
+
+            self._session.add(model)
+            self._session.flush()
+            self._session.refresh(model)
+
+            return self._to_stored_paper(model)
+
+        if paper.normalized_doi is None:
+            return insert()
+
+        return add_with_conflict_recovery(
+            self._session,
+            insert=insert,
+            recover=lambda: self.get_by_normalized_doi(paper.normalized_doi or ""),
+            message="A duplicate paper insert could not be recovered.",
         )
-
-        self._session.add(model)
-        self._session.flush()
-        self._session.refresh(model)
-
-        return self._to_stored_paper(model)
 
     @staticmethod
     def _to_stored_paper(

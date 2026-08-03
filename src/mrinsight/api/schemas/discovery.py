@@ -162,6 +162,7 @@ class DigestResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: int
+    idempotency_key: str
     subscription_id: int
     topic_id: int | None
     digest_date: date
@@ -182,6 +183,7 @@ class DigestResponse(BaseModel):
 
         return cls(
             id=digest.id,
+            idempotency_key=digest.idempotency_key,
             subscription_id=digest.subscription_id,
             topic_id=digest.topic_id,
             digest_date=digest.digest_date,

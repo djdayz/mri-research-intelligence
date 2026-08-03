@@ -95,6 +95,7 @@ def test_repository_persists_subscription_run_candidate_digest_and_delivery(
         ranking_explanation="score",
     )
     digest = repository.add_digest(
+        idempotency_key="digest-test-key",
         subscription_id=subscription.id,
         topic_id=topic.id,
         digest_date=date(2026, 1, 31),
