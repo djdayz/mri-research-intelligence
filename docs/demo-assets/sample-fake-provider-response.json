@@ -1,0 +1,193 @@
+{
+  "input_tokens": 33,
+  "latency_ms": 1,
+  "model": "fake-analysis-model-v1",
+  "output_tokens": 134,
+  "provider": "fake",
+  "provider_request_id": "redacted-demo-id",
+  "raw_json": {
+    "acquisition_details": {
+      "evidence_references": [],
+      "status": "unavailable_abstract_only",
+      "text": "Unavailable because only abstract evidence was supplied."
+    },
+    "analysis_scope": "abstract_only",
+    "clinical_or_scientific_significance": {
+      "evidence_references": [
+        {
+          "chunk_id": 303,
+          "content_id": 202,
+          "end_char": 238,
+          "end_page": null,
+          "excerpt": "This synthetic BOLD MRI study measured cerebrovascular reactivity. Methods used ",
+          "paper_id": 101,
+          "role": "primary",
+          "section": "abstract",
+          "start_char": 0,
+          "start_page": null
+        }
+      ],
+      "status": "reported",
+      "text": "The paper studies MRI evidence using supplied chunks."
+    },
+    "comparison_methods": {
+      "evidence_references": [],
+      "status": "not_reported",
+      "text": "Not reported in supplied evidence."
+    },
+    "content_id": 202,
+    "key_results": [
+      {
+        "evidence_references": [
+          {
+            "chunk_id": 303,
+            "content_id": 202,
+            "end_char": 238,
+            "end_page": null,
+            "excerpt": "This synthetic BOLD MRI study measured cerebrovascular reactivity. Methods used ",
+            "paper_id": 101,
+            "role": "primary",
+            "section": "abstract",
+            "start_char": 0,
+            "start_page": null
+          }
+        ],
+        "status": "reported",
+        "text": "The paper studies MRI evidence using supplied chunks."
+      }
+    ],
+    "limitations": [
+      {
+        "evidence_references": [],
+        "status": "not_reported",
+        "text": "Not reported in supplied evidence."
+      }
+    ],
+    "methodology_steps": [
+      {
+        "evidence_references": [
+          {
+            "chunk_id": 303,
+            "content_id": 202,
+            "end_char": 238,
+            "end_page": null,
+            "excerpt": "This synthetic BOLD MRI study measured cerebrovascular reactivity. Methods used ",
+            "paper_id": 101,
+            "role": "primary",
+            "section": "abstract",
+            "start_char": 0,
+            "start_page": null
+          }
+        ],
+        "status": "reported",
+        "text": "The paper studies MRI evidence using supplied chunks."
+      }
+    ],
+    "missing_information": [
+      {
+        "evidence_references": [],
+        "status": "not_reported",
+        "text": "Not reported in supplied evidence."
+      }
+    ],
+    "model_or_statistical_methods": {
+      "evidence_references": [],
+      "status": "not_reported",
+      "text": "Not reported in supplied evidence."
+    },
+    "numerical_results": [
+      {
+        "comparator": null,
+        "confidence_interval": null,
+        "direction": "uncertain",
+        "evidence_reference": {
+          "chunk_id": 303,
+          "content_id": 202,
+          "end_char": 238,
+          "end_page": null,
+          "excerpt": "This synthetic BOLD MRI study measured cerebrovascular reactivity. Methods used ",
+          "paper_id": 101,
+          "role": "numerical",
+          "section": "abstract",
+          "start_char": 0,
+          "start_page": null
+        },
+        "metric": "reported value",
+        "sample_size": null,
+        "uncertainty": null,
+        "unit": null,
+        "value": null,
+        "value_text": "2.5"
+      }
+    ],
+    "objective": {
+      "evidence_references": [
+        {
+          "chunk_id": 303,
+          "content_id": 202,
+          "end_char": 238,
+          "end_page": null,
+          "excerpt": "This synthetic BOLD MRI study measured cerebrovascular reactivity. Methods used ",
+          "paper_id": 101,
+          "role": "primary",
+          "section": "abstract",
+          "start_char": 0,
+          "start_page": null
+        }
+      ],
+      "status": "reported",
+      "text": "The paper studies MRI evidence using supplied chunks."
+    },
+    "paper_id": 101,
+    "population_or_dataset": {
+      "evidence_references": [],
+      "status": "not_reported",
+      "text": "Not reported in supplied evidence."
+    },
+    "preprocessing": {
+      "evidence_references": [],
+      "status": "not_reported",
+      "text": "Not reported in supplied evidence."
+    },
+    "reproducibility_notes": [
+      {
+        "evidence_references": [],
+        "status": "not_reported",
+        "text": "Not reported in supplied evidence."
+      }
+    ],
+    "schema_version": "paper-analysis-schema-v1",
+    "source_checksum": "30700fa7cce03153f492526013a8e818efcdb804d2bc1c3e872181f7a728acde",
+    "strengths": [
+      {
+        "evidence_references": [],
+        "status": "not_reported",
+        "text": "Not reported in supplied evidence."
+      }
+    ],
+    "study_design": {
+      "evidence_references": [],
+      "status": "not_reported",
+      "text": "Not reported in supplied evidence."
+    },
+    "suggested_improvements": [
+      {
+        "evidence_references": [],
+        "status": "not_reported",
+        "text": "Not reported in supplied evidence."
+      }
+    ],
+    "uncertainty": [
+      {
+        "evidence_references": [],
+        "status": "not_reported",
+        "text": "Not reported in supplied evidence."
+      }
+    ],
+    "validation_design": {
+      "evidence_references": [],
+      "status": "not_reported",
+      "text": "Not reported in supplied evidence."
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # MRInsight Implementation Progress
 
-Status is based on local repository verification on 2026-08-02. A box is marked complete only when covered by implementation and tests available in this repository.
+Status is based on local repository verification on 2026-08-03. A box is marked complete only when covered by implementation and tests available in this repository.
 
 ## Milestones 1-6
 
@@ -54,12 +54,12 @@ Status is based on local repository verification on 2026-08-02. A box is marked 
 
 ## Milestones 12-16
 
-- [ ] Milestone 12: MVP hardening
-- [ ] Phase 13: Real email and scheduling
-- [ ] Phase 14: LLM evaluation and advanced observability
-- [ ] Phase 15: Production deployment
-- [ ] Phase 16: Portfolio polish
+- [x] Milestone 12: MVP hardening
+- [x] Phase 13: Real email and scheduling
+- [x] Phase 14: LLM evaluation and advanced observability
+- [x] Phase 15: Production deployment
+- [x] Phase 16: Portfolio polish
 
 ## Current Next Best Step
 
-Implement Milestone 12: MVP hardening.
+Run final verification after each branch is merged, then prepare any live demo credentials or deployment environment outside source control.

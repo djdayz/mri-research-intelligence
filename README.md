@@ -21,6 +21,7 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - Deterministic golden LLM evaluation command with machine-readable quality, token, latency, and estimated-cost metrics.
 - Production Dockerfile, local Docker Compose stack, Kubernetes deployment template, and gated CI/CD workflow scaffolding.
 - MVP hardening for duplicate insert recovery, digest idempotency, request correlation IDs, structured JSON logs, readiness checks, and a public API E2E workflow.
+- Portfolio case study, architecture diagrams, and synthetic demonstration assets suitable for employer review.
 
 ## Local Setup
 
@@ -83,6 +84,13 @@ docker compose up --build api
 ```
 
 The compose stack starts PostgreSQL, runs Alembic migrations once, then serves the API on `http://localhost:8000`.
+
+## Portfolio And Demo Assets
+
+- [Portfolio case study](docs/portfolio-case-study.md)
+- [Architecture diagrams](docs/architecture.md)
+- [Demo guide](docs/demo.md)
+- [Synthetic demo assets](docs/demo-assets)
 
 ## API Examples
 
