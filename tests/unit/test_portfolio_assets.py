@@ -107,3 +107,31 @@ def test_portfolio_docs_do_not_contain_stale_gap_language() -> None:
         text = path.read_text(encoding="utf-8")
         for phrase in stale_phrases:
             assert phrase not in text
+
+
+def test_implementation_progress_lists_every_late_substep() -> None:
+    progress = (DOCS / "implementation-progress.md").read_text(encoding="utf-8")
+
+    for label in (
+        "12A: Concurrent duplicate recovery",
+        "12B: Complete end-to-end test",
+        "12C: Migration and CI hardening",
+        "12D: Structured logging and baseline observability",
+        "12E: README, architecture, and API documentation",
+        "12F: Release candidate and demo workflow",
+        "13A: Real delivery adapter",
+        "13B: Scheduled execution",
+        "13C: Delivery idempotency and retry",
+        "14A: Golden evaluation set",
+        "14B: Automated regression evaluation",
+        "14C: Cost, latency, and quality metrics",
+        "15A: Docker",
+        "15B: Cloud deployment configuration",
+        "15C: Production database and secrets",
+        "15D: CI/CD",
+        "16A: Portfolio case study",
+        "16B: Architecture visuals",
+        "16C: Demonstration assets",
+        "16D: Employer-facing quality review",
+    ):
+        assert label in progress

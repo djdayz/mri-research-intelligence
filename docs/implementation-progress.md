@@ -52,14 +52,51 @@ Status is based on local repository verification on 2026-08-03. A box is marked 
 - [x] 11C: Digest generation and preview delivery
 - [x] 11D: Manual digest API and CLI
 
-## Milestones 12-16
+## Milestone 12
 
-- [x] Milestone 12: MVP hardening
-- [x] Phase 13: Real email and scheduling
-- [x] Phase 14: LLM evaluation and advanced observability
-- [x] Phase 15: Production deployment
-- [x] Phase 16: Portfolio polish
+- [x] 12A: Concurrent duplicate recovery
+- [x] 12B: Complete end-to-end test
+- [x] 12C: Migration and CI hardening
+- [x] 12D: Structured logging and baseline observability
+- [x] 12E: README, architecture, and API documentation
+- [x] 12F: Release candidate and demo workflow
+
+## Phase 13
+
+- [x] 13A: Real delivery adapter
+- [x] 13B: Scheduled execution
+- [x] 13C: Delivery idempotency and retry
+
+## Phase 14
+
+- [x] 14A: Golden evaluation set
+- [x] 14B: Automated regression evaluation
+- [x] 14C: Cost, latency, and quality metrics
+
+## Phase 15
+
+- [x] 15A: Docker
+- [x] 15B: Cloud deployment configuration
+- [x] 15C: Production database and secrets
+- [x] 15D: CI/CD
+
+## Phase 16
+
+- [x] 16A: Portfolio case study
+- [x] 16B: Architecture visuals
+- [x] 16C: Demonstration assets
+- [x] 16D: Employer-facing quality review
+
+## Final Verification
+
+- [x] Repository and tracked-file audit
+- [x] Code quality gates
+- [x] PostgreSQL-backed test suite
+- [x] Alembic head and schema-drift checks, including migration from a clean reset test database schema
+- [x] API smoke verification with fake providers
+- [x] Security and dead-code searches
+- [ ] Local Docker build and compose run, blocked on Docker not being installed in this local environment
 
 ## Current Next Best Step
 
-Run final verification after each branch is merged, then prepare any live demo credentials or deployment environment outside source control.
+Prepare external live-demo configuration outside source control: OpenAI API key, Crossref contact email, SMTP credentials, production database URL, cloud deployment credentials, and domain/DNS settings.
