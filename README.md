@@ -91,6 +91,7 @@ The compose stack starts PostgreSQL, runs Alembic migrations once, then serves t
 - [Architecture diagrams](docs/architecture.md)
 - [Demo guide](docs/demo.md)
 - [Synthetic demo assets](docs/demo-assets)
+- [Final verification report](docs/final-verification.md)
 
 ## API Examples
 

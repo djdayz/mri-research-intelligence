@@ -79,10 +79,13 @@ The repository is expected to pass:
 - `.venv/bin/python -m ruff check .`: passed
 - `.venv/bin/python -m ruff format --check .`: passed
 - `.venv/bin/python -m mypy`: passed
-- `.venv/bin/python -m pytest`: passed
+- `.venv/bin/python -m pytest`: 248 passed, 0 skipped
 - `.venv/bin/python -m alembic current --check-heads`: passed at current head
 - `.venv/bin/python -m alembic check`: no new upgrade operations detected
 - `.venv/bin/python -m mrinsight.cli eval run --output var/evaluation/golden-report.json`: passed with deterministic fake provider
+- API process smoke test: `/health`, `/ready`, and `/openapi.json` passed against the migrated test database
+- Fake-provider API workflow: DOI ingestion, relevance, analysis, retrieval, subscription, digest preview, and digest retrieval passed in `tests/api/test_mvp_workflow.py`
+- Docker build and Compose run: not locally verified because Docker is not installed in this environment
 
 See `docs/testing.md` and `docs/release-checklist.md` for the current release gates.
 

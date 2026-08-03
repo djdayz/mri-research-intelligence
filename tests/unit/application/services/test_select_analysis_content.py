@@ -39,7 +39,7 @@ class InMemoryPaperContentRepository:
     ) -> StoredPaperContent:
         del content
 
-        raise NotImplementedError
+        pytest.fail("Selector tests must not add content.")
 
     def update_extraction(
         self,
@@ -76,7 +76,7 @@ class InMemoryPaperContentRepository:
             extraction_error,
         )
 
-        raise NotImplementedError
+        pytest.fail("Selector tests must not update extraction state.")
 
 
 def make_content(
