@@ -16,7 +16,8 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - Strict scientific-analysis schema, fake LLM provider contract, OpenAI Responses API adapter, prompt versioning, deterministic evidence selection, evidence validation, and bounded one-repair invalid-output policy.
 - `LLMRun` and `PaperAnalysis` persistence with provider/model/prompt/schema/input checksums, selected chunk IDs, token usage, request IDs, latency, status, validation errors, and cache-aware analysis retrieval.
 - Search and retrieval API for paginated paper lists, paper detail, content metadata, explicit chunk retrieval, filters, stable sorting, and related-resource links.
-- Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, and fake/file/console delivery providers.
+- Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, fake/file/console delivery providers, and SMTP email delivery.
+- Scheduled one-shot digest and delivery-retry CLI commands suitable for cron, container schedulers, or cloud scheduled tasks.
 - MVP hardening for duplicate insert recovery, digest idempotency, request correlation IDs, structured JSON logs, readiness checks, and a public API E2E workflow.
 
 ## Local Setup
@@ -55,6 +56,15 @@ CI runs these checks on Python 3.11 after applying migrations and verifying the 
 Application logs are single-line JSON events. The API logs request completion without request bodies, and the discovery/digest/analysis paths log provider name, status, duration, and compact non-secret identifiers.
 
 Repository writes that have natural uniqueness constraints recover from duplicate insert races through a savepoint and re-query the existing row. This is used for papers, content, chunks, relevance assessments, successful analysis cache rows, digests, and digest deliveries. Failed analyses remain retryable.
+
+Digest delivery can run through `file`, `console`, or `smtp` providers. SMTP requires `MRINSIGHT_DIGEST_DELIVERY_PROVIDER=smtp`, `MRINSIGHT_SMTP_HOST`, `MRINSIGHT_SMTP_SENDER`, and optional SMTP username/password/TLS settings. Normal tests do not send live email.
+
+Scheduled execution should invoke one-shot CLI commands from cron, a container scheduler, or a cloud scheduled task:
+
+```bash
+python -m mrinsight.cli digest run-due --rows 20
+python -m mrinsight.cli digest retry-deliveries --limit 20
+```
 
 ## API Examples
 
@@ -98,4 +108,4 @@ curl -X POST http://localhost:8000/papers/1/full-text \
 - The TF-IDF model is an interpretable baseline trained from caller-provided fixtures, not a clinically validated classifier.
 - Live LLM calls require `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY`; normal tests use deterministic fakes and do not call live providers.
 - Crossref discovery is metadata search and does not represent complete global literature coverage.
-- Real email delivery, Docker, and production deployment are still pending.
+- Docker, cloud deployment, and production operations hardening are still pending.

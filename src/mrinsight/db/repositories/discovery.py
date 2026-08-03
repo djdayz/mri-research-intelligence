@@ -102,6 +102,24 @@ class SqlAlchemyDiscoveryRepository:
             return None
         return self._to_subscription(model)
 
+    def mark_subscription_processed_at(
+        self,
+        subscription_id: int,
+        *,
+        processed_at: datetime,
+    ) -> StoredSubscription:
+        """Record that a subscription was processed by a scheduled run."""
+
+        model = self._session.get(Subscription, subscription_id)
+        if model is None:
+            raise RuntimeError(f"Subscription {subscription_id} does not exist.")
+
+        model.last_processed_at = processed_at
+        self._session.flush()
+        self._session.refresh(model)
+
+        return self._to_subscription(model)
+
     def add_discovery_run(
         self,
         *,
@@ -296,10 +314,15 @@ class SqlAlchemyDiscoveryRepository:
         status: DeliveryStatus,
         idempotency_key: str,
         error: str | None,
+        provider_response_id: str | None = None,
+        attempt_count: int = 1,
+        retryable: bool = False,
+        next_retry_at: datetime | None = None,
     ) -> StoredDigestDelivery:
         """Persist one delivery attempt."""
 
         def insert() -> StoredDigestDelivery:
+            completed_at = datetime.now(UTC)
             model = DigestDelivery(
                 digest_id=digest_id,
                 provider=provider,
@@ -307,7 +330,15 @@ class SqlAlchemyDiscoveryRepository:
                 status=status.value,
                 idempotency_key=idempotency_key,
                 error=error,
-                completed_at=datetime.now(UTC),
+                provider_response_id=provider_response_id,
+                attempt_count=attempt_count,
+                retryable=retryable,
+                next_retry_at=next_retry_at,
+                delivered_at=(
+                    completed_at if status is DeliveryStatus.SUCCEEDED else None
+                ),
+                failed_at=completed_at if status is DeliveryStatus.FAILED else None,
+                completed_at=completed_at,
             )
             self._session.add(model)
             self._session.flush()
@@ -315,10 +346,21 @@ class SqlAlchemyDiscoveryRepository:
 
             return _to_digest_delivery(model)
 
+        def recover() -> StoredDigestDelivery | None:
+            existing = self.get_delivery_by_idempotency_key(idempotency_key)
+            if existing is not None:
+                return existing
+            if status is DeliveryStatus.SUCCEEDED:
+                return self.get_successful_delivery(
+                    digest_id=digest_id,
+                    provider=provider,
+                )
+            return None
+
         return add_with_conflict_recovery(
             self._session,
             insert=insert,
-            recover=lambda: self.get_delivery_by_idempotency_key(idempotency_key),
+            recover=recover,
             message="A duplicate delivery insert could not be recovered.",
         )
 
@@ -356,6 +398,68 @@ class SqlAlchemyDiscoveryRepository:
         ).scalar_one_or_none()
 
         return _to_digest_delivery(model) if model is not None else None
+
+    def get_successful_delivery(
+        self,
+        *,
+        digest_id: int,
+        provider: str,
+    ) -> StoredDigestDelivery | None:
+        """Return a successful delivery for one digest and provider."""
+
+        model = self._session.execute(
+            select(DigestDelivery).where(
+                DigestDelivery.digest_id == digest_id,
+                DigestDelivery.provider == provider,
+                DigestDelivery.status == DeliveryStatus.SUCCEEDED.value,
+            )
+        ).scalar_one_or_none()
+
+        return _to_digest_delivery(model) if model is not None else None
+
+    def list_retryable_deliveries_due(
+        self,
+        *,
+        provider: str,
+        due_at: datetime,
+        limit: int,
+    ) -> tuple[StoredDigestDelivery, ...]:
+        """Return failed retryable deliveries ready for another attempt."""
+
+        models = self._session.execute(
+            select(DigestDelivery)
+            .where(
+                DigestDelivery.provider == provider,
+                DigestDelivery.status == DeliveryStatus.FAILED.value,
+                DigestDelivery.retryable.is_(True),
+                DigestDelivery.next_retry_at.is_not(None),
+                DigestDelivery.next_retry_at <= due_at,
+            )
+            .order_by(
+                DigestDelivery.next_retry_at.asc(),
+                DigestDelivery.id.asc(),
+            )
+            .limit(limit)
+        ).scalars()
+
+        return tuple(_to_digest_delivery(model) for model in models)
+
+    def mark_delivery_retry_consumed(
+        self,
+        delivery_id: int,
+    ) -> StoredDigestDelivery:
+        """Prevent an already retried failed delivery from being retried again."""
+
+        model = self._session.get(DigestDelivery, delivery_id)
+        if model is None:
+            raise RuntimeError(f"Digest delivery {delivery_id} does not exist.")
+
+        model.retryable = False
+        model.next_retry_at = None
+        self._session.flush()
+        self._session.refresh(model)
+
+        return _to_digest_delivery(model)
 
     def _to_subscription(
         self,
@@ -496,6 +600,12 @@ def _to_digest_delivery(
         status=DeliveryStatus(model.status),
         idempotency_key=model.idempotency_key,
         error=model.error,
+        provider_response_id=model.provider_response_id,
+        attempt_count=model.attempt_count,
+        retryable=model.retryable,
+        next_retry_at=model.next_retry_at,
+        delivered_at=model.delivered_at,
+        failed_at=model.failed_at,
         created_at=model.created_at,
         completed_at=model.completed_at,
     )

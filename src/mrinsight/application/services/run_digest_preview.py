@@ -24,6 +24,8 @@ from mrinsight.discovery import (
     DiscoveryRunStatus,
     DiscoverySearchRequest,
     NewSubscription,
+    StoredDigest,
+    StoredDigestDelivery,
     StoredDiscoveryCandidate,
     StoredSubscription,
 )
@@ -64,6 +66,7 @@ class RunDigestPreviewService:
     relevance_service: AssessPaperRelevanceService
     discovery_provider: DiscoveryProvider
     delivery_provider: DigestDeliveryProvider
+    delivery_retry_delay_seconds: int = 900
 
     def execute(
         self,
@@ -181,29 +184,10 @@ class RunDigestPreviewService:
             selected_papers=selected_papers,
             error=None,
         )
-        delivery_started_at = perf_counter()
-        delivery_result = self.delivery_provider.deliver(
+        delivery = self._deliver_digest(
             digest,
             destination=subscription.delivery_destination,
-        )
-        log_event(
-            "digest_delivery_completed",
-            provider=delivery_result.provider,
-            digest_id=digest.id,
-            succeeded=delivery_result.succeeded,
-            duration_ms=round((perf_counter() - delivery_started_at) * 1000, 2),
-        )
-        delivery = self.discovery_repository.add_delivery(
-            digest_id=digest.id,
-            provider=delivery_result.provider,
-            destination=delivery_result.destination,
-            status=(
-                DeliveryStatus.SUCCEEDED
-                if delivery_result.succeeded
-                else DeliveryStatus.FAILED
-            ),
-            idempotency_key=f"digest-preview:{digest.id}:{delivery_result.provider}",
-            error=delivery_result.error,
+            idempotency_key=f"digest-preview:{digest.id}:{self.delivery_provider.name}",
         )
 
         return DigestRunResult(
@@ -212,6 +196,61 @@ class RunDigestPreviewService:
             candidates=tuple(persisted_candidates),
             digest=digest,
             delivery=delivery,
+        )
+
+    def _deliver_digest(
+        self,
+        digest: StoredDigest,
+        *,
+        destination: str | None,
+        idempotency_key: str,
+        attempt_count: int = 1,
+    ) -> StoredDigestDelivery:
+        """Deliver one digest unless a successful delivery already exists."""
+
+        existing_success = self.discovery_repository.get_successful_delivery(
+            digest_id=digest.id,
+            provider=self.delivery_provider.name,
+        )
+        if existing_success is not None:
+            return existing_success
+
+        delivery_started_at = perf_counter()
+        delivery_result = self.delivery_provider.deliver(
+            digest,
+            destination=destination,
+        )
+        status = (
+            DeliveryStatus.SUCCEEDED
+            if delivery_result.succeeded
+            else DeliveryStatus.FAILED
+        )
+        next_retry_at = (
+            datetime.now(UTC) + timedelta(seconds=self.delivery_retry_delay_seconds)
+            if status is DeliveryStatus.FAILED and delivery_result.retryable
+            else None
+        )
+        log_event(
+            "digest_delivery_completed",
+            provider=delivery_result.provider,
+            digest_id=digest.id,
+            succeeded=delivery_result.succeeded,
+            attempt_count=delivery_result.attempt_count,
+            retryable=delivery_result.retryable,
+            duration_ms=round((perf_counter() - delivery_started_at) * 1000, 2),
+        )
+
+        return self.discovery_repository.add_delivery(
+            digest_id=digest.id,
+            provider=delivery_result.provider,
+            destination=delivery_result.destination,
+            status=status,
+            idempotency_key=idempotency_key,
+            error=delivery_result.error,
+            provider_response_id=delivery_result.provider_response_id,
+            attempt_count=attempt_count,
+            retryable=delivery_result.retryable,
+            next_retry_at=next_retry_at,
         )
 
     def _process_candidate(

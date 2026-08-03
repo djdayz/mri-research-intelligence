@@ -113,4 +113,6 @@ CLI digest preview:
 
 ```bash
 python -m mrinsight.cli digest run --subscription-id 1 --rows 10
+python -m mrinsight.cli digest run-due --rows 20
+python -m mrinsight.cli digest retry-deliveries --limit 20
 ```

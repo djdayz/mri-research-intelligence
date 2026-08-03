@@ -13,6 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -271,7 +272,36 @@ class DigestDelivery(Base):
             "status IN ('succeeded', 'failed')",
             name="ck_digest_deliveries_supported_status",
         ),
+        CheckConstraint(
+            "attempt_count >= 1",
+            name="ck_digest_deliveries_positive_attempt_count",
+        ),
+        CheckConstraint(
+            "("
+            "status = 'succeeded' "
+            "AND delivered_at IS NOT NULL "
+            "AND failed_at IS NULL"
+            ") OR ("
+            "status = 'failed' "
+            "AND failed_at IS NOT NULL "
+            "AND delivered_at IS NULL"
+            ")",
+            name="ck_digest_deliveries_valid_terminal_timestamps",
+        ),
         Index("ix_digest_deliveries_digest_status", "digest_id", "status"),
+        Index(
+            "ix_digest_deliveries_retry_due",
+            "provider",
+            "next_retry_at",
+            postgresql_where=text("retryable IS TRUE"),
+        ),
+        Index(
+            "uq_digest_deliveries_success_digest_provider",
+            "digest_id",
+            "provider",
+            unique=True,
+            postgresql_where=text("status = 'succeeded'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -285,6 +315,28 @@ class DigestDelivery(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_response_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    attempt_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+    )
+    retryable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    failed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

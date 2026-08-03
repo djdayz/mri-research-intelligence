@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy.orm import Session
@@ -115,6 +115,7 @@ def test_repository_persists_subscription_run_candidate_digest_and_delivery(
         status=DeliveryStatus.SUCCEEDED,
         idempotency_key="test-delivery-key",
         error=None,
+        provider_response_id="fake-response-1",
     )
 
     assert subscription.topics[0].id == topic.id
@@ -122,3 +123,71 @@ def test_repository_persists_subscription_run_candidate_digest_and_delivery(
     assert candidate.rank_position == 1
     assert repository.get_digest(digest.id) == digest
     assert delivery.status is DeliveryStatus.SUCCEEDED
+    assert delivery.provider_response_id == "fake-response-1"
+    assert delivery.attempt_count == 1
+    assert delivery.retryable is False
+    assert delivery.delivered_at is not None
+    assert delivery.failed_at is None
+
+
+@pytest.mark.integration
+def test_repository_lists_and_consumes_due_retryable_deliveries(
+    db_session: Session,
+) -> None:
+    repository = SqlAlchemyDiscoveryRepository(db_session)
+    topic = repository.list_topics()[0]
+    subscription = repository.add_subscription(
+        NewSubscription(
+            name="Retryable digest",
+            discovery_query="MRI CVR",
+            topic_ids=(topic.id,),
+            minimum_relevance_score=0.2,
+            preferred_categories=("mri", "cvr"),
+            digest_cadence=DigestCadence.WEEKLY,
+        )
+    )
+    digest = repository.add_digest(
+        idempotency_key="retry-digest-key",
+        subscription_id=subscription.id,
+        topic_id=topic.id,
+        digest_date=date(2026, 1, 31),
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 1, 31),
+        status=DigestStatus.GENERATED,
+        title="Digest",
+        plain_text="Digest",
+        html="<html></html>",
+        selected_papers=(),
+        error=None,
+    )
+    now = datetime.now(UTC)
+    failed_delivery = repository.add_delivery(
+        digest_id=digest.id,
+        provider="smtp",
+        destination="reader@example.org",
+        status=DeliveryStatus.FAILED,
+        idempotency_key="retry-delivery-key",
+        error="SMTP error 451.",
+        provider_response_id="<message@example.org>",
+        attempt_count=1,
+        retryable=True,
+        next_retry_at=now - timedelta(minutes=1),
+    )
+
+    due = repository.list_retryable_deliveries_due(
+        provider="smtp",
+        due_at=now,
+        limit=10,
+    )
+    consumed = repository.mark_delivery_retry_consumed(failed_delivery.id)
+    due_after_consumption = repository.list_retryable_deliveries_due(
+        provider="smtp",
+        due_at=now,
+        limit=10,
+    )
+
+    assert due == (failed_delivery,)
+    assert failed_delivery.failed_at is not None
+    assert consumed.retryable is False
+    assert consumed.next_retry_at is None
+    assert due_after_consumption == ()
