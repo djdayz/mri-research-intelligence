@@ -31,6 +31,24 @@ When Crossref mailto settings are absent, discovery uses the deterministic empty
 
 See `docs/demo-fixture.json` for the canonical demo payloads.
 
+## Synthetic Demo Assets
+
+Reusable demonstration files are stored under `docs/demo-assets`:
+
+- `synthetic-mri-cvr-paper.pdf`: generated PDF with synthetic MRI/CVR text.
+- `sample-api-requests.http`: local API requests for health, DOI ingestion, PDF upload, relevance, analysis, and digest preview.
+- `sample-fake-provider-response.json`: deterministic fake LLM raw JSON response.
+- `sample-analysis-output.json`: validated analysis with evidence references.
+- `sample-fake-evaluation-report.json`: deterministic evaluation summary and case results.
+- `sample-digest.txt` and `sample-digest.html`: rendered digest examples.
+- `sample-cli-transcript.txt`: representative local CLI transcript.
+
+Regenerate the assets with:
+
+```bash
+.venv/bin/python scripts/generate_demo_assets.py
+```
+
 ## SMTP Delivery Demo
 
 Set:

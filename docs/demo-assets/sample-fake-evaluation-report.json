@@ -1,0 +1,142 @@
+{
+  "cases": [
+    {
+      "case_id": "synthetic-valid-evidence",
+      "description": "Valid evidence-backed abstract analysis with numerical support.",
+      "estimated_cost_usd": 0.0,
+      "evidence_coverage": 1.0,
+      "expected_repair_count": 0,
+      "expected_success": true,
+      "input_tokens": 33,
+      "latency_ms": 1,
+      "model": "fake-analysis-model-v1",
+      "numerical_attribution_valid": true,
+      "output_tokens": 134,
+      "passed": true,
+      "provider": "fake",
+      "repair_attempt_count": 0,
+      "schema_valid": true,
+      "scope_correct": true,
+      "status": "valid",
+      "unsupported_claim_errors": [],
+      "validation_errors": []
+    },
+    {
+      "case_id": "synthetic-repairable-json",
+      "description": "Malformed first response repaired into valid structured output.",
+      "estimated_cost_usd": 0.0,
+      "evidence_coverage": 1.0,
+      "expected_repair_count": 1,
+      "expected_success": true,
+      "input_tokens": 36,
+      "latency_ms": 1,
+      "model": "fake-analysis-model-v1",
+      "numerical_attribution_valid": true,
+      "output_tokens": 134,
+      "passed": true,
+      "provider": "fake",
+      "repair_attempt_count": 1,
+      "schema_valid": true,
+      "scope_correct": true,
+      "status": "repaired",
+      "unsupported_claim_errors": [],
+      "validation_errors": [
+        "Malformed JSON: Expecting value"
+      ]
+    },
+    {
+      "case_id": "synthetic-missing-evidence",
+      "description": "Reported claims without evidence must fail validation.",
+      "estimated_cost_usd": 0.0,
+      "evidence_coverage": 0.0,
+      "expected_repair_count": 1,
+      "expected_success": false,
+      "input_tokens": 192,
+      "latency_ms": 1,
+      "model": "fake-analysis-model-v1",
+      "numerical_attribution_valid": true,
+      "output_tokens": 124,
+      "passed": true,
+      "provider": "fake",
+      "repair_attempt_count": 1,
+      "schema_valid": false,
+      "scope_correct": true,
+      "status": "invalid",
+      "unsupported_claim_errors": [
+        "{'type': 'value_error', 'loc': ('objective',), 'msg': 'Value error, Reported or uncertain claims require evidence.', 'input': {'evidence_references': [], 'status': 'reported', 'text': 'The paper studies MRI evidence using supplied chunks.'}, 'ctx': {'error': ValueError('Reported or uncertain claims require evidence.')}, 'url': 'https://errors.pydantic.dev/2.13/v/value_error'}",
+        "{'type': 'value_error', 'loc': ('objective',), 'msg': 'Value error, Reported or uncertain claims require evidence.', 'input': {'evidence_references': [], 'status': 'reported', 'text': 'The paper studies MRI evidence using supplied chunks.'}, 'ctx': {'error': ValueError('Reported or uncertain claims require evidence.')}, 'url': 'https://errors.pydantic.dev/2.13/v/value_error'}"
+      ],
+      "validation_errors": [
+        "{'type': 'value_error', 'loc': ('objective',), 'msg': 'Value error, Reported or uncertain claims require evidence.', 'input': {'evidence_references': [], 'status': 'reported', 'text': 'The paper studies MRI evidence using supplied chunks.'}, 'ctx': {'error': ValueError('Reported or uncertain claims require evidence.')}, 'url': 'https://errors.pydantic.dev/2.13/v/value_error'}",
+        "{'type': 'value_error', 'loc': ('objective',), 'msg': 'Value error, Reported or uncertain claims require evidence.', 'input': {'evidence_references': [], 'status': 'reported', 'text': 'The paper studies MRI evidence using supplied chunks.'}, 'ctx': {'error': ValueError('Reported or uncertain claims require evidence.')}, 'url': 'https://errors.pydantic.dev/2.13/v/value_error'}"
+      ]
+    },
+    {
+      "case_id": "synthetic-numerical-mismatch",
+      "description": "Numerical claims must cite evidence containing the value.",
+      "estimated_cost_usd": 0.0,
+      "evidence_coverage": 0.0,
+      "expected_repair_count": 1,
+      "expected_success": false,
+      "input_tokens": 173,
+      "latency_ms": 1,
+      "model": "fake-analysis-model-v1",
+      "numerical_attribution_valid": false,
+      "output_tokens": 134,
+      "passed": true,
+      "provider": "fake",
+      "repair_attempt_count": 1,
+      "schema_valid": false,
+      "scope_correct": true,
+      "status": "invalid",
+      "unsupported_claim_errors": [],
+      "validation_errors": [
+        "numerical_results[1] value is not present in cited evidence.",
+        "numerical_results[1] value is not present in cited evidence."
+      ]
+    },
+    {
+      "case_id": "synthetic-abstract-scope-mismatch",
+      "description": "Abstract-only evidence cannot be presented as full text.",
+      "estimated_cost_usd": 0.0,
+      "evidence_coverage": 0.0,
+      "expected_repair_count": 1,
+      "expected_success": false,
+      "input_tokens": 173,
+      "latency_ms": 1,
+      "model": "fake-analysis-model-v1",
+      "numerical_attribution_valid": true,
+      "output_tokens": 134,
+      "passed": true,
+      "provider": "fake",
+      "repair_attempt_count": 1,
+      "schema_valid": false,
+      "scope_correct": false,
+      "status": "invalid",
+      "unsupported_claim_errors": [],
+      "validation_errors": [
+        "abstract content cannot be presented as full-text analysis.",
+        "abstract content cannot be presented as full-text analysis."
+      ]
+    }
+  ],
+  "generated_at": "2026-08-03T00:00:00+00:00",
+  "live_model_warning": null,
+  "provider_mode": "fake",
+  "summary": {
+    "average_latency_ms": 1.0,
+    "evidence_coverage_rate": 0.4,
+    "failed_cases": 0,
+    "numerical_attribution_rate": 0.8,
+    "pass_rate": 1.0,
+    "passed_cases": 5,
+    "repair_rate": 0.8,
+    "schema_validity_rate": 0.4,
+    "scope_correctness_rate": 0.8,
+    "total_cases": 5,
+    "total_estimated_cost_usd": 0.0,
+    "total_input_tokens": 607,
+    "total_output_tokens": 660,
+    "validation_failure_rate": 0.8
+  }
+}

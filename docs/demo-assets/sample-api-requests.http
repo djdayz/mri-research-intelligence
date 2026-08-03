@@ -1,0 +1,31 @@
+# MRInsight local demo requests.
+
+### Health
+GET http://localhost:8000/health
+
+### Readiness
+GET http://localhost:8000/ready
+
+### Ingest DOI metadata
+POST http://localhost:8000/papers
+content-type: application/json
+
+{"doi":"10.1234/synthetic-demo"}
+
+### Upload permitted synthetic PDF
+POST http://localhost:8000/papers/1/full-text
+content-type: multipart/form-data
+
+file=@docs/demo-assets/synthetic-mri-cvr-paper.pdf;type=application/pdf
+
+### Compute deterministic relevance
+POST http://localhost:8000/papers/1/relevance
+
+### Generate fake-provider analysis
+POST http://localhost:8000/papers/1/analysis
+
+### Manual digest preview
+POST http://localhost:8000/subscriptions/1/digest-preview
+content-type: application/json
+
+{"period_start":"2026-01-01","period_end":"2026-01-31","rows":10}

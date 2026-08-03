@@ -1,11 +1,11 @@
 # MRInsight Implementation Audit
 
-Audit date: 2026-08-02
+Audit date: 2026-08-03
 
 ## Repository State
 
-- Branch at audit start: `feat/full-text-ingestion`
-- Latest commit at audit start: `2127221 feat: add full text PDF ingestion`
+- Branch at latest portfolio review: `feat/portfolio-polish`
+- Latest merged baseline before this review: production deployment branch merged into `main`
 - Package root: `src/mrinsight`
 - Local project interpreter used for verification: `.venv/bin/python`
 - Python version observed: 3.13.7
@@ -25,19 +25,32 @@ Major installed packages observed during audit:
 
 ## Implemented Structure
 
-- API layer: health, DOI ingestion, PDF full-text upload, deterministic relevance assessment
-- Application services: DOI ingestion, abstract storage, full-text ingestion, chunk building, analysis-content selection, relevance assessment
-- Domain records/protocols: papers, content, chunks, providers, relevance records, relevance repository protocol
-- Persistence: SQLAlchemy repositories for papers, content, pages, chunks, relevance assessments
-- NLP: text cleaning, section detection, section-aware chunking, terminology matching, rule-based relevance scoring, TF-IDF baseline
-- External providers: Crossref adapter, fake bibliographic provider, unconfigured provider
+- API layer: health/readiness, DOI ingestion, PDF full-text upload, relevance, analysis, retrieval, discovery, subscriptions, and digest preview
+- Application services: DOI ingestion, abstract storage, full-text ingestion, chunk building, analysis-content selection, relevance assessment, analysis generation, retrieval, discovery, and digest generation
+- Domain records/protocols: papers, content, chunks, providers, relevance, analysis, retrieval, discovery, digest, and delivery contracts
+- Persistence: SQLAlchemy repositories for papers, content, pages, chunks, relevance assessments, LLM runs, analyses, topics, subscriptions, discovery runs/candidates, digests, and deliveries
+- NLP: text cleaning, section detection, section-aware chunking, terminology matching, rule-based relevance scoring, TF-IDF baseline, and deterministic evidence selection
+- External providers: Crossref bibliographic/discovery adapters, OpenAI Responses adapter, SMTP provider, file/console delivery providers, and deterministic fakes
 
 ## API Routes
 
 - `GET /health`
+- `GET /ready`
 - `POST /papers`
 - `POST /papers/{paper_id}/full-text`
 - `POST /papers/{paper_id}/relevance`
+- `POST /papers/{paper_id}/analysis`
+- `GET /papers/{paper_id}/analysis`
+- `GET /analyses/{analysis_id}`
+- `GET /papers`
+- `GET /papers/{paper_id}`
+- `GET /papers/{paper_id}/contents`
+- `GET /papers/{paper_id}/chunks`
+- `GET /topics`
+- `POST /subscriptions`
+- `GET /subscriptions`
+- `POST /subscriptions/{subscription_id}/digest-preview`
+- `GET /digests/{digest_id}`
 
 ## Database Tables
 
@@ -46,24 +59,34 @@ Major installed packages observed during audit:
 - `paper_content_pages`
 - `paper_chunks`
 - `paper_relevance_assessments`
+- `llm_runs`
+- `paper_analyses`
+- `topics`
+- `subscriptions`
+- `subscription_topics`
+- `discovery_runs`
+- `discovery_candidates`
+- `digests`
+- `digest_deliveries`
 - `alembic_version`
 
-Current Alembic head after this pass: `4af4a9d74a1d`
+Current Alembic head after this pass: `5d3b9a1c4e22`
 
-## Verification Results
+## Current Verification Gates
 
-Baseline before relevance work:
+The repository is expected to pass:
 
 - `.venv/bin/python -m ruff check .`: passed
 - `.venv/bin/python -m ruff format --check .`: passed
 - `.venv/bin/python -m mypy`: passed
-- `.venv/bin/python -m pytest`: 155 passed
-- `.venv/bin/python -m alembic current --check-heads`: passed at `8f8d1c2e7b90`
+- `.venv/bin/python -m pytest`: passed
+- `.venv/bin/python -m alembic current --check-heads`: passed at current head
 - `.venv/bin/python -m alembic check`: no new upgrade operations detected
+- `.venv/bin/python -m mrinsight.cli eval run --output var/evaluation/golden-report.json`: passed with deterministic fake provider
 
-After relevance work, final verification commands are recorded in the final response for this pass.
+See `docs/testing.md` and `docs/release-checklist.md` for the current release gates.
 
-## Repairs And Additions In This Pass
+## Selected Implementation Notes
 
 - Added versioned MRI/CVR terminology ontology as `src/mrinsight/relevance/ontology.json`.
 - Added boundary-aware terminology matcher with Unicode, hyphen, punctuation, field-strength, overlap, and false-positive tests.
@@ -81,15 +104,13 @@ After relevance work, final verification commands are recorded in the final resp
 - Added prompt templates with prompt versions and checksums.
 - Added provider-independent LLM request/response records and deterministic fake LLM provider modes for valid output, malformed JSON, schema-invalid output, missing evidence, bad chunk references, scope mismatch, numerical inconsistency, timeout, failure, and repairable malformed JSON.
 - Added bounded generation service: validate first output, perform at most one repair request, validate repaired output, and fail honestly with diagnostics if still invalid.
+- Added retrieval, discovery, digest, SMTP, scheduling, observability, deployment, and portfolio layers with offline tests and synthetic demo assets.
 
-## Remaining Major Gaps
+## Current External Actions
 
-The repository is not yet a complete implementation of the full master prompt. Major incomplete areas include:
+The repository now implements the local code, tests, documentation, CI, and deployment scaffolding for the master prompt. The remaining work is intentionally external to source control:
 
-- Real LLM provider adapter.
-- Analysis and LLM-run persistence.
-- Search/list/detail retrieval endpoints.
-- Discovery, subscriptions, digests, delivery providers, and CLI.
-- Concurrency recovery hardening across all duplicate write paths.
-- Structured logging, request correlation, readiness checks, Docker/deployment assets, and release/demo automation.
-- Complete portfolio documentation and end-to-end fake-provider workflow.
+- configure real OpenAI, SMTP, Crossref mailto, database, and cloud deployment secrets in a secret store;
+- run live LLM/provider/email checks only when credentials and cost approval are available;
+- choose a production hosting target, domain, backup policy, and monitoring retention settings;
+- verify Docker build and deployment in an environment with Docker and target infrastructure available.

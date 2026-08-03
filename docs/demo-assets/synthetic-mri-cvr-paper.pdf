@@ -1,0 +1,64 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 323 >>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(Synthetic MRI CVR Demonstration Paper) Tj
+0 -18 Td
+(Abstract) Tj
+0 -18 Td
+(This generated PDF describes a permitted synthetic BOLD MRI study.) Tj
+0 -18 Td
+(Methods used a carbon dioxide challenge and CVR mapping.) Tj
+0 -18 Td
+(Results reported 2.5 units of signal change in the supplied text.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 200 >>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(Limitations) Tj
+0 -18 Td
+(This is not a real paper and contains no private source material.) Tj
+0 -18 Td
+(It exists only to demonstrate upload, extraction, and chunking.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000253 00000 n 
+0000000627 00000 n 
+0000000753 00000 n 
+0000001004 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+1074
+%%EOF
