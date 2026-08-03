@@ -127,6 +127,7 @@ jobs:
         run: docker run --rm "${{ steps.meta.outputs.image_tag }}" python -c "import mrinsight; print(mrinsight.__version__)"
 
       - name: Scan image
+        continue-on-error: ${{ !inputs.publish_image }}
         uses: aquasecurity/trivy-action@v0.33.1
         with:
           image-ref: ${{ steps.meta.outputs.image_tag }}

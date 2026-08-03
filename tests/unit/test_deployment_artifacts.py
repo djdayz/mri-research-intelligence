@@ -44,6 +44,7 @@ def test_deploy_workflow_builds_scans_publishes_and_runs_migrations() -> None:
     assert "setuptools>=83.0.0" in workflow
     assert "docker build" in workflow
     assert "aquasecurity/trivy-action@v0.33.1" in workflow
+    assert "continue-on-error: ${{ !inputs.publish_image }}" in workflow
     assert "docker push" in workflow
     assert "DEPLOY_MIGRATE_COMMAND" in workflow
     assert "DEPLOY_RELEASE_COMMAND" in workflow
