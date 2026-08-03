@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +20,7 @@ from mrinsight.application.services import (
     SelectAnalysisContentService,
     StoreAbstractContentService,
 )
+from mrinsight.core.config import get_settings
 from mrinsight.db.models import Subscription
 from mrinsight.db.repositories import (
     SqlAlchemyDiscoveryRepository,
@@ -27,7 +29,7 @@ from mrinsight.db.repositories import (
     SqlAlchemyPaperRepository,
     SqlAlchemyRelevanceAssessmentRepository,
 )
-from mrinsight.discovery import DigestCadence, NewSubscription
+from mrinsight.discovery import DigestCadence, NewSubscription, StoredSubscription
 
 DEMO_SUBSCRIPTION_NAME = "Demo MRI CVR weekly digest"
 
@@ -47,6 +49,10 @@ def main(
     run_parser = digest_subparsers.add_parser("run")
     run_parser.add_argument("--subscription-id", type=int, required=True)
     run_parser.add_argument("--rows", type=int, default=20)
+    run_due_parser = digest_subparsers.add_parser("run-due")
+    run_due_parser.add_argument("--rows", type=int, default=20)
+    retry_parser = digest_subparsers.add_parser("retry-deliveries")
+    retry_parser.add_argument("--limit", type=int, default=20)
     seed_parser = subparsers.add_parser("seed")
     seed_subparsers = seed_parser.add_subparsers(
         dest="seed_command",
@@ -61,6 +67,10 @@ def main(
             subscription_id=args.subscription_id,
             rows=args.rows,
         )
+    if args.command == "digest" and args.digest_command == "run-due":
+        return _run_due_digest_previews(rows=args.rows)
+    if args.command == "digest" and args.digest_command == "retry-deliveries":
+        return _retry_due_deliveries(limit=args.limit)
     if args.command == "seed" and args.seed_command == "demo":
         return _seed_demo()
 
@@ -85,6 +95,87 @@ def _run_digest_preview(
         f"Created digest {result.digest.id} with "
         f"{len(result.digest.selected_papers)} papers."
     )
+    return 0
+
+
+def _run_due_digest_previews(
+    *,
+    rows: int,
+) -> int:
+    """Run due subscriptions once for cron or container schedulers."""
+
+    now = datetime.now(UTC)
+    session_factory = get_database_session_factory()
+    with session_factory() as session:
+        repository = SqlAlchemyDiscoveryRepository(session)
+        subscriptions = tuple(
+            subscription
+            for subscription in repository.list_subscriptions()
+            if _is_subscription_due(subscription, now)
+        )
+
+    processed_count = 0
+    for subscription in subscriptions:
+        with session_factory() as session:
+            repository = SqlAlchemyDiscoveryRepository(session)
+            service = _build_digest_service(session)
+            result = service.execute(subscription_id=subscription.id, rows=rows)
+            repository.mark_subscription_processed_at(
+                subscription.id,
+                processed_at=now,
+            )
+            session.commit()
+        processed_count += 1
+        print(f"Created digest {result.digest.id} for subscription {subscription.id}.")
+
+    print(f"Processed {processed_count} due subscriptions.")
+    return 0
+
+
+def _retry_due_deliveries(
+    *,
+    limit: int,
+) -> int:
+    """Retry due failed delivery attempts once and exit."""
+
+    now = datetime.now(UTC)
+    provider = get_digest_delivery_provider()
+    session_factory = get_database_session_factory()
+    with session_factory() as session:
+        repository = SqlAlchemyDiscoveryRepository(session)
+        due_deliveries = repository.list_retryable_deliveries_due(
+            provider=provider.name,
+            due_at=now,
+            limit=limit,
+        )
+
+    retried_count = 0
+    for delivery in due_deliveries:
+        with session_factory() as session:
+            repository = SqlAlchemyDiscoveryRepository(session)
+            digest = repository.get_digest(delivery.digest_id)
+            if digest is None:
+                repository.mark_delivery_retry_consumed(delivery.id)
+                session.commit()
+                continue
+            service = _build_digest_service(session)
+            retry = service._deliver_digest(
+                digest,
+                destination=delivery.destination,
+                idempotency_key=(
+                    f"{delivery.idempotency_key}:retry:{delivery.attempt_count + 1}"
+                ),
+                attempt_count=delivery.attempt_count + 1,
+            )
+            repository.mark_delivery_retry_consumed(delivery.id)
+            session.commit()
+        retried_count += 1
+        print(
+            f"Retried delivery {delivery.id}; "
+            f"new delivery {retry.id} status {retry.status.value}."
+        )
+
+    print(f"Retried {retried_count} due deliveries.")
     return 0
 
 
@@ -141,6 +232,28 @@ def _find_subscription_by_name(
     ).scalar_one_or_none()
 
 
+def _is_subscription_due(
+    subscription: StoredSubscription,
+    now: datetime,
+) -> bool:
+    """Return whether a subscription should run in a scheduled invocation."""
+
+    if not subscription.enabled:
+        return False
+    if subscription.digest_cadence is DigestCadence.MANUAL:
+        return False
+    if subscription.last_processed_at is None:
+        return True
+
+    cadence_intervals = {
+        DigestCadence.DAILY: timedelta(days=1),
+        DigestCadence.WEEKLY: timedelta(days=7),
+        DigestCadence.MONTHLY: timedelta(days=30),
+    }
+    interval = cadence_intervals[subscription.digest_cadence]
+    return subscription.last_processed_at <= now - interval
+
+
 def _build_digest_service(
     session: Session,
 ) -> RunDigestPreviewService:
@@ -166,6 +279,7 @@ def _build_digest_service(
         ),
         discovery_provider=get_discovery_provider(),
         delivery_provider=get_digest_delivery_provider(),
+        delivery_retry_delay_seconds=get_settings().digest_delivery_retry_delay_seconds,
     )
 
 

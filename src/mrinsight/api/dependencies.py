@@ -49,12 +49,15 @@ from mrinsight.db.session import (
     create_session_factory,
 )
 from mrinsight.discovery import (
+    ConsoleDigestDeliveryProvider,
     CrossrefDiscoveryProvider,
     DigestDeliveryProvider,
     DiscoveryProvider,
     DiscoveryRepository,
     FakeDiscoveryProvider,
     FileDigestDeliveryProvider,
+    SmtpDigestDeliveryConfig,
+    SmtpDigestDeliveryProvider,
 )
 from mrinsight.documents import PdfUploadPolicy
 from mrinsight.documents.extractors import (
@@ -270,6 +273,31 @@ def get_discovery_provider() -> DiscoveryProvider:
 @lru_cache
 def get_digest_delivery_provider() -> DigestDeliveryProvider:
     """Return the configured digest preview delivery provider."""
+
+    settings = get_settings()
+
+    if settings.digest_delivery_provider == "console":
+        return ConsoleDigestDeliveryProvider()
+
+    if settings.digest_delivery_provider == "smtp":
+        if settings.smtp_host is None or settings.smtp_sender is None:
+            raise RuntimeError(
+                "SMTP delivery requires MRINSIGHT_SMTP_HOST and MRINSIGHT_SMTP_SENDER."
+            )
+        return SmtpDigestDeliveryProvider(
+            SmtpDigestDeliveryConfig(
+                host=settings.smtp_host,
+                port=settings.smtp_port,
+                sender=settings.smtp_sender,
+                username=settings.smtp_username,
+                password=settings.smtp_password,
+                use_tls=settings.smtp_use_tls,
+                use_ssl=settings.smtp_use_ssl,
+                timeout_seconds=settings.smtp_timeout_seconds,
+                max_attempts=settings.smtp_max_attempts,
+                backoff_seconds=settings.smtp_backoff_seconds,
+            )
+        )
 
     return FileDigestDeliveryProvider(Path("var/digests"))
 
@@ -584,6 +612,8 @@ def get_run_digest_preview_service(
 ) -> RunDigestPreviewService:
     """Construct digest preview workflow service."""
 
+    settings = get_settings()
+
     return RunDigestPreviewService(
         discovery_repository=discovery_repository,
         abstract_content_service=abstract_content_service,
@@ -591,6 +621,7 @@ def get_run_digest_preview_service(
         relevance_service=relevance_service,
         discovery_provider=discovery_provider,
         delivery_provider=delivery_provider,
+        delivery_retry_delay_seconds=settings.digest_delivery_retry_delay_seconds,
     )
 
 

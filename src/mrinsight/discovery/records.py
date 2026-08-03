@@ -217,6 +217,12 @@ class StoredDigestDelivery:
     status: DeliveryStatus
     idempotency_key: str
     error: str | None
+    provider_response_id: str | None
+    attempt_count: int
+    retryable: bool
+    next_retry_at: datetime | None
+    delivered_at: datetime | None
+    failed_at: datetime | None
     created_at: datetime
     completed_at: datetime | None
 

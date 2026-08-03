@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol
 
 from mrinsight.discovery.records import (
@@ -39,6 +39,14 @@ class DiscoveryRepository(Protocol):
         subscription_id: int,
     ) -> StoredSubscription | None:
         """Return one subscription."""
+
+    def mark_subscription_processed_at(
+        self,
+        subscription_id: int,
+        *,
+        processed_at: datetime,
+    ) -> StoredSubscription:
+        """Record that a subscription was processed by a scheduled run."""
 
     def add_discovery_run(
         self,
@@ -123,6 +131,10 @@ class DiscoveryRepository(Protocol):
         status: DeliveryStatus,
         idempotency_key: str,
         error: str | None,
+        provider_response_id: str | None = None,
+        attempt_count: int = 1,
+        retryable: bool = False,
+        next_retry_at: datetime | None = None,
     ) -> StoredDigestDelivery:
         """Persist one delivery attempt."""
 
@@ -131,3 +143,26 @@ class DiscoveryRepository(Protocol):
         digest_id: int,
     ) -> StoredDigest | None:
         """Return one digest."""
+
+    def get_successful_delivery(
+        self,
+        *,
+        digest_id: int,
+        provider: str,
+    ) -> StoredDigestDelivery | None:
+        """Return a successful delivery for one digest and provider."""
+
+    def list_retryable_deliveries_due(
+        self,
+        *,
+        provider: str,
+        due_at: datetime,
+        limit: int,
+    ) -> tuple[StoredDigestDelivery, ...]:
+        """Return failed retryable deliveries ready for another attempt."""
+
+    def mark_delivery_retry_consumed(
+        self,
+        delivery_id: int,
+    ) -> StoredDigestDelivery:
+        """Prevent an already retried failed delivery from being retried again."""

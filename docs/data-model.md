@@ -12,7 +12,7 @@ Current tables:
 - `topics`: seeded and explicit discovery topics with query text, structured rules, preferred categories, and enabled state.
 - `subscriptions` and `subscription_topics`: manual digest subscriptions, topic membership, relevance threshold, preferred categories, cadence, destination, enabled state, and last processed timestamp.
 - `discovery_runs` and `discovery_candidates`: provider/date-window discovery provenance, candidate DOI/title deduplication outcomes, rank positions, relevance scores, and errors.
-- `digests` and `digest_deliveries`: rendered plain-text/HTML digest previews, selected paper payloads, delivery attempts, idempotency keys, statuses, and errors.
+- `digests` and `digest_deliveries`: rendered plain-text/HTML digest previews, selected paper payloads, delivery attempts, idempotency keys, statuses, provider response IDs, attempt counts, retry timestamps, and delivery/failure timestamps.
 
 JSONB is used for relevance diagnostics, selected chunk IDs, validation errors, validated analysis payloads, topic rules, preferred categories, and digest selected-paper payloads because these are structured values converted at repository boundaries.
 

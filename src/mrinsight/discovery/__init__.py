@@ -4,6 +4,8 @@ from mrinsight.discovery.delivery import (
     DigestDeliveryProvider,
     FakeDigestDeliveryProvider,
     FileDigestDeliveryProvider,
+    SmtpDigestDeliveryConfig,
+    SmtpDigestDeliveryProvider,
     render_digest_html,
     render_digest_plain_text,
 )
@@ -62,6 +64,8 @@ __all__ = [
     "InvalidDiscoveryProviderResponseError",
     "NewSubscription",
     "NewTopic",
+    "SmtpDigestDeliveryConfig",
+    "SmtpDigestDeliveryProvider",
     "StoredDigest",
     "StoredDigestDelivery",
     "StoredDiscoveryCandidate",

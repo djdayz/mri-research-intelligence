@@ -31,3 +31,5 @@ Focused MVP hardening checks:
 ```
 
 `tests/api/test_mvp_workflow.py` is the public API end-to-end path for the MVP. It uses fake metadata, fake LLM, fake discovery, and fake delivery providers.
+
+SMTP delivery tests inject a fake SMTP client and never contact a live server. Live email delivery is a manual smoke test only after SMTP credentials and a test recipient are configured.

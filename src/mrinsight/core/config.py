@@ -75,6 +75,37 @@ class Settings(BaseSettings):
         ge=1,
     )
 
+    digest_delivery_provider: Literal["file", "console", "smtp"] = "file"
+    digest_delivery_retry_delay_seconds: int = Field(
+        default=900,
+        ge=0,
+    )
+
+    smtp_host: str | None = None
+    smtp_port: int = Field(
+        default=587,
+        ge=1,
+        le=65535,
+    )
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_sender: str | None = None
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    smtp_timeout_seconds: float = Field(
+        default=10.0,
+        gt=0,
+    )
+    smtp_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+    )
+    smtp_backoff_seconds: float = Field(
+        default=0.5,
+        ge=0,
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -1,7 +1,13 @@
+import re
+import smtplib
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from email.message import EmailMessage
+from email.utils import make_msgid, parseaddr
 from html import escape
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from mrinsight.discovery.records import DigestPaper, StoredDigest
 
@@ -14,6 +20,9 @@ class DeliveryResult:
     destination: str | None
     succeeded: bool
     error: str | None = None
+    provider_response_id: str | None = None
+    attempt_count: int = 1
+    retryable: bool = False
 
 
 class DigestDeliveryProvider(Protocol):
@@ -93,6 +102,7 @@ class FileDigestDeliveryProvider:
             provider=self.name,
             destination=str(output_dir),
             succeeded=True,
+            provider_response_id=f"{text_path.name}:{html_path.name}",
         )
 
 
@@ -101,6 +111,7 @@ class FakeDigestDeliveryProvider:
 
     def __init__(self) -> None:
         self.deliveries: list[StoredDigest] = []
+        self.failures_before_success = 0
 
     @property
     def name(self) -> str:
@@ -116,12 +127,152 @@ class FakeDigestDeliveryProvider:
     ) -> DeliveryResult:
         """Record delivery without side effects."""
 
+        if self.failures_before_success > 0:
+            self.failures_before_success -= 1
+            return DeliveryResult(
+                provider=self.name,
+                destination=destination,
+                succeeded=False,
+                error="Simulated retryable fake delivery failure.",
+                retryable=True,
+            )
+
         self.deliveries.append(digest)
         return DeliveryResult(
             provider=self.name,
             destination=destination,
             succeeded=True,
+            provider_response_id=f"fake-delivery-{digest.id}",
         )
+
+
+@dataclass(frozen=True, slots=True)
+class SmtpDigestDeliveryConfig:
+    """Configuration for SMTP digest delivery."""
+
+    host: str
+    port: int
+    sender: str
+    username: str | None
+    password: str | None
+    use_tls: bool
+    use_ssl: bool
+    timeout_seconds: float
+    max_attempts: int
+    backoff_seconds: float
+
+
+class SmtpDigestDeliveryProvider:
+    """Deliver digest previews through an SMTP server."""
+
+    def __init__(
+        self,
+        config: SmtpDigestDeliveryConfig,
+        *,
+        smtp_factory: Callable[..., Any] | None = None,
+        smtp_ssl_factory: Callable[..., Any] | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self._config = config
+        self._smtp_factory = smtp_factory or smtplib.SMTP
+        self._smtp_ssl_factory = smtp_ssl_factory or smtplib.SMTP_SSL
+        self._sleep = sleep
+
+    @property
+    def name(self) -> str:
+        """Return provider name."""
+
+        return "smtp"
+
+    def deliver(
+        self,
+        digest: StoredDigest,
+        *,
+        destination: str | None,
+    ) -> DeliveryResult:
+        """Send one digest email with bounded retries."""
+
+        recipient = _validated_email(destination or "")
+        sender = _validated_email(self._config.sender)
+
+        if recipient is None:
+            return DeliveryResult(
+                provider=self.name,
+                destination=destination,
+                succeeded=False,
+                error="Invalid recipient email address.",
+            )
+        if sender is None:
+            return DeliveryResult(
+                provider=self.name,
+                destination=recipient,
+                succeeded=False,
+                error="Invalid SMTP sender email address.",
+            )
+
+        message_id = make_msgid()
+        message = _build_email_message(
+            digest=digest,
+            sender=sender,
+            recipient=recipient,
+            message_id=message_id,
+        )
+        last_error: str | None = None
+        retryable = True
+        attempt = 1
+
+        for attempt in range(1, self._config.max_attempts + 1):
+            try:
+                refused = self._send_message(message)
+            except Exception as error:
+                last_error = _smtp_error_message(error)
+                retryable = _is_retryable_smtp_error(error)
+            else:
+                if not refused:
+                    return DeliveryResult(
+                        provider=self.name,
+                        destination=recipient,
+                        succeeded=True,
+                        provider_response_id=message_id,
+                        attempt_count=attempt,
+                    )
+                last_error = "SMTP server refused one or more recipients."
+                retryable = False
+
+            if not retryable or attempt == self._config.max_attempts:
+                break
+            if self._config.backoff_seconds > 0:
+                self._sleep(self._config.backoff_seconds)
+
+        return DeliveryResult(
+            provider=self.name,
+            destination=recipient,
+            succeeded=False,
+            error=last_error or "SMTP delivery failed.",
+            provider_response_id=message_id,
+            attempt_count=attempt,
+            retryable=retryable,
+        )
+
+    def _send_message(
+        self,
+        message: EmailMessage,
+    ) -> dict[str, tuple[int, bytes]]:
+        smtp_factory = (
+            self._smtp_ssl_factory if self._config.use_ssl else self._smtp_factory
+        )
+        with smtp_factory(
+            self._config.host,
+            self._config.port,
+            timeout=self._config.timeout_seconds,
+        ) as smtp:
+            if self._config.use_tls and not self._config.use_ssl:
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.ehlo()
+            if self._config.username is not None:
+                smtp.login(self._config.username, self._config.password or "")
+            return smtp.send_message(message)
 
 
 def render_digest_plain_text(
@@ -242,3 +393,68 @@ def _html_list(
 
     items = "".join(f"<li>{escape(value)}</li>" for value in values)
     return f"<p><strong>{escape(label)}:</strong></p><ul>{items}</ul>"
+
+
+def _build_email_message(
+    *,
+    digest: StoredDigest,
+    sender: str,
+    recipient: str,
+    message_id: str,
+) -> EmailMessage:
+    """Build a multipart digest email."""
+
+    message = EmailMessage()
+    message["Subject"] = digest.title
+    message["From"] = sender
+    message["To"] = recipient
+    message["Message-ID"] = message_id
+    message.set_content(digest.plain_text)
+    message.add_alternative(digest.html, subtype="html")
+    return message
+
+
+def _validated_email(
+    value: str,
+) -> str | None:
+    """Return a normalized single email address, if valid enough to deliver."""
+
+    address = value.strip()
+    _, parsed = parseaddr(address)
+
+    if parsed != address:
+        return None
+    if "," in address or "\n" in address or "\r" in address:
+        return None
+    if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", address) is None:
+        return None
+    return address
+
+
+def _smtp_error_message(
+    error: Exception,
+) -> str:
+    """Return a compact non-secret SMTP error message."""
+
+    if isinstance(error, smtplib.SMTPResponseException):
+        return f"SMTP error {error.smtp_code}."
+    return type(error).__name__
+
+
+def _is_retryable_smtp_error(
+    error: Exception,
+) -> bool:
+    """Classify SMTP errors for bounded retries."""
+
+    if isinstance(error, smtplib.SMTPResponseException):
+        return 400 <= error.smtp_code < 500
+    return isinstance(
+        error,
+        (
+            TimeoutError,
+            OSError,
+            smtplib.SMTPConnectError,
+            smtplib.SMTPServerDisconnected,
+            smtplib.SMTPDataError,
+        ),
+    )

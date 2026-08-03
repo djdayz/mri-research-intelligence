@@ -17,3 +17,12 @@ Operational notes:
 - Route load balancer readiness checks to `/ready`.
 - Preserve or inject `x-request-id` at the edge; the API returns it on every response.
 - Configure `MRINSIGHT_LLM_PROVIDER=fake` for offline demos and `MRINSIGHT_LLM_PROVIDER=openai` plus `MRINSIGHT_LLM_API_KEY` only for live LLM operation.
+- Configure `MRINSIGHT_DIGEST_DELIVERY_PROVIDER=smtp` plus SMTP host/sender/auth variables for real email delivery. Keep SMTP credentials in the runtime secret store.
+- Run `python -m mrinsight.cli digest run-due --rows 20` from cron, a container scheduler, or a cloud scheduled task; run `python -m mrinsight.cli digest retry-deliveries --limit 20` on a separate retry cadence.
+
+Cron example:
+
+```cron
+*/30 * * * * cd /app && . /etc/mrinsight.env && python -m mrinsight.cli digest run-due --rows 20
+*/15 * * * * cd /app && . /etc/mrinsight.env && python -m mrinsight.cli digest retry-deliveries --limit 20
+```
