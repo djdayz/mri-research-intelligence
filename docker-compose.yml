@@ -1,0 +1,106 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: mrinsight
+      POSTGRES_PASSWORD: mrinsight_local_password
+      POSTGRES_USER: mrinsight
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mrinsight -d mrinsight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  migrate:
+    build:
+      context: .
+    image: mrinsight-api:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MRINSIGHT_ENVIRONMENT: local
+      MRINSIGHT_DATABASE_URL: postgresql+psycopg://mrinsight:mrinsight_local_password@db:5432/mrinsight
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+
+  api:
+    image: mrinsight-api:local
+    build:
+      context: .
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      MRINSIGHT_ENVIRONMENT: local
+      MRINSIGHT_LOG_LEVEL: INFO
+      MRINSIGHT_DATABASE_URL: postgresql+psycopg://mrinsight:mrinsight_local_password@db:5432/mrinsight
+      MRINSIGHT_CROSSREF_MAILTO: ""
+      MRINSIGHT_LLM_PROVIDER: fake
+      MRINSIGHT_DIGEST_DELIVERY_PROVIDER: file
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/ready', timeout=3).read()",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    ports:
+      - "8000:8000"
+    volumes:
+      - digest-previews:/app/var/digests
+
+  digest-run-due:
+    image: mrinsight-api:local
+    profiles: ["jobs"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      MRINSIGHT_ENVIRONMENT: local
+      MRINSIGHT_DATABASE_URL: postgresql+psycopg://mrinsight:mrinsight_local_password@db:5432/mrinsight
+      MRINSIGHT_DIGEST_DELIVERY_PROVIDER: file
+    command: ["python", "-m", "mrinsight.cli", "digest", "run-due", "--rows", "20"]
+    volumes:
+      - digest-previews:/app/var/digests
+
+  digest-retry-deliveries:
+    image: mrinsight-api:local
+    profiles: ["jobs"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      MRINSIGHT_ENVIRONMENT: local
+      MRINSIGHT_DATABASE_URL: postgresql+psycopg://mrinsight:mrinsight_local_password@db:5432/mrinsight
+      MRINSIGHT_DIGEST_DELIVERY_PROVIDER: file
+    command:
+      [
+        "python",
+        "-m",
+        "mrinsight.cli",
+        "digest",
+        "retry-deliveries",
+        "--limit",
+        "20",
+      ]
+    volumes:
+      - digest-previews:/app/var/digests
+
+volumes:
+  digest-previews:
+  postgres-data:

@@ -19,6 +19,7 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, fake/file/console delivery providers, and SMTP email delivery.
 - Scheduled one-shot digest and delivery-retry CLI commands suitable for cron, container schedulers, or cloud scheduled tasks.
 - Deterministic golden LLM evaluation command with machine-readable quality, token, latency, and estimated-cost metrics.
+- Production Dockerfile, local Docker Compose stack, Kubernetes deployment template, and gated CI/CD workflow scaffolding.
 - MVP hardening for duplicate insert recovery, digest idempotency, request correlation IDs, structured JSON logs, readiness checks, and a public API E2E workflow.
 
 ## Local Setup
@@ -75,6 +76,14 @@ python -m mrinsight.cli eval run --output var/evaluation/golden-report.json
 
 Configured-provider evaluation requires `--allow-live` and may call OpenAI if `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY` are set.
 
+Run the local container stack:
+
+```bash
+docker compose up --build api
+```
+
+The compose stack starts PostgreSQL, runs Alembic migrations once, then serves the API on `http://localhost:8000`.
+
 ## API Examples
 
 ```bash
@@ -117,4 +126,4 @@ curl -X POST http://localhost:8000/papers/1/full-text \
 - The TF-IDF model is an interpretable baseline trained from caller-provided fixtures, not a clinically validated classifier.
 - Live LLM calls require `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY`; normal tests use deterministic fakes and do not call live providers.
 - Crossref discovery is metadata search and does not represent complete global literature coverage.
-- Docker, cloud deployment, and production operations hardening are still pending.
+- Cloud credentials, production domain configuration, and live deployment verification are intentionally not included.

@@ -41,3 +41,10 @@ Run deterministic golden LLM evaluation:
 ```
 
 This uses synthetic cases and the fake LLM provider by default. Live-model evaluation requires `--provider configured --allow-live` and should not be a required CI gate.
+
+Deployment artifact checks are covered by `tests/unit/test_deployment_artifacts.py`. A real Docker image build requires Docker to be installed:
+
+```bash
+docker build -t mrinsight-api:local .
+docker compose up --build api
+```

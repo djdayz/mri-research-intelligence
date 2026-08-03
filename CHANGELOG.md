@@ -6,4 +6,5 @@
 - Added MVP hardening for duplicate insert recovery, digest idempotency, readiness checks, request correlation IDs, structured JSON logs, and public API E2E coverage.
 - Added SMTP digest delivery, scheduled digest CLI execution, delivery retry metadata, and retry commands for external schedulers.
 - Added deterministic golden LLM evaluation with machine-readable reports and local quality/latency/token/cost metrics.
+- Added production Dockerfile, local Docker Compose stack, Kubernetes deployment template, configurable database pooling, and gated CI/CD deployment workflow.
 - Documented local setup, quality gates, demo flow, deployment limits, and scientific limitations.
