@@ -15,6 +15,7 @@ Current safety controls:
 - Analysis persistence records provider/model/prompt/schema/input metadata, selected evidence identity, request status, validation errors, and cache identity.
 - Discovery records provider provenance, DOI/title-year deduplication outcomes, candidate statuses, rank positions, and errors.
 - Digest HTML rendering escapes untrusted paper and provider text, and digest previews do not claim Crossref or any provider has complete literature coverage.
+- Golden evaluation covers schema validity, evidence coverage, unsupported claims, numerical attribution, and abstract/full-text scope correctness with synthetic fixtures.
 
 Known limits:
 
@@ -22,4 +23,5 @@ Known limits:
 - OCR is not implemented.
 - Deterministic relevance is not clinical validation.
 - Live LLM calls require a configured provider and API key; normal automated tests use deterministic fakes.
+- Live LLM evaluation is optional, may cost money, and is not used as a required CI gate.
 - Crossref discovery is metadata search with incomplete abstract and coverage availability.

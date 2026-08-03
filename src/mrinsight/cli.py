@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from mrinsight.analysis import LLMProvider
 from mrinsight.api.dependencies import (
     get_database_session_factory,
     get_digest_delivery_provider,
     get_discovery_provider,
+    get_llm_provider,
     get_rule_based_relevance_scorer,
 )
 from mrinsight.application.services import (
@@ -30,6 +33,8 @@ from mrinsight.db.repositories import (
     SqlAlchemyRelevanceAssessmentRepository,
 )
 from mrinsight.discovery import DigestCadence, NewSubscription, StoredSubscription
+from mrinsight.evaluation import run_evaluation
+from mrinsight.evaluation.fixtures import GoldenEvaluationCase
 
 DEMO_SUBSCRIPTION_NAME = "Demo MRI CVR weekly digest"
 
@@ -53,6 +58,19 @@ def main(
     run_due_parser.add_argument("--rows", type=int, default=20)
     retry_parser = digest_subparsers.add_parser("retry-deliveries")
     retry_parser.add_argument("--limit", type=int, default=20)
+    eval_parser = subparsers.add_parser("eval")
+    eval_subparsers = eval_parser.add_subparsers(
+        dest="eval_command",
+        required=True,
+    )
+    eval_run_parser = eval_subparsers.add_parser("run")
+    eval_run_parser.add_argument(
+        "--provider",
+        choices=("fake", "configured"),
+        default="fake",
+    )
+    eval_run_parser.add_argument("--output", type=Path, default=None)
+    eval_run_parser.add_argument("--allow-live", action="store_true")
     seed_parser = subparsers.add_parser("seed")
     seed_subparsers = seed_parser.add_subparsers(
         dest="seed_command",
@@ -71,6 +89,12 @@ def main(
         return _run_due_digest_previews(rows=args.rows)
     if args.command == "digest" and args.digest_command == "retry-deliveries":
         return _retry_due_deliveries(limit=args.limit)
+    if args.command == "eval" and args.eval_command == "run":
+        return _run_evaluation_command(
+            provider_mode=args.provider,
+            output_path=args.output,
+            allow_live=args.allow_live,
+        )
     if args.command == "seed" and args.seed_command == "demo":
         return _seed_demo()
 
@@ -218,6 +242,45 @@ def _seed_demo() -> int:
         session.commit()
 
     print(f"Created demo subscription {subscription.id}.")
+    return 0
+
+
+def _run_evaluation_command(
+    *,
+    provider_mode: str,
+    output_path: Path | None,
+    allow_live: bool,
+) -> int:
+    """Run deterministic or explicitly live LLM evaluation."""
+
+    settings = get_settings()
+    provider_factory: Callable[[GoldenEvaluationCase], LLMProvider] | None = None
+
+    if provider_mode == "configured":
+        if not allow_live:
+            raise RuntimeError(
+                "Configured-provider evaluation may call a live LLM. "
+                "Pass --allow-live after setting provider credentials."
+            )
+        provider = get_llm_provider()
+
+        def configured_provider_factory(
+            _case: GoldenEvaluationCase,
+        ) -> LLMProvider:
+            return provider
+
+        provider_factory = configured_provider_factory
+
+    report = run_evaluation(
+        provider_mode=provider_mode,
+        model_identifier=settings.llm_model,
+        provider_factory=provider_factory,
+        output_path=output_path,
+    )
+    print(report.to_json())
+
+    if provider_mode == "fake" and report.summary.failed_cases:
+        return 1
     return 0
 
 

@@ -118,6 +118,14 @@ class AnalyzePaperService:
         )
 
         if cached is not None:
+            log_event(
+                "llm_analysis_cache_hit",
+                provider=self.provider_name,
+                model=self.model_identifier,
+                paper_id=paper.id,
+                paper_content_id=content.id,
+                analysis_scope=selected_content.scope.value,
+            )
             return AnalyzePaperResult(
                 analysis=cached,
                 outcome=PaperAnalysisOutcome.CACHED,
@@ -139,6 +147,22 @@ class AnalyzePaperService:
             analysis_scope=selected_content.scope.value,
             status=generation_result.status.value,
             repair_attempt_count=generation_result.repair_attempt_count,
+            input_token_count=(
+                generation_result.final_provider_response.input_tokens
+                if generation_result.final_provider_response is not None
+                else None
+            ),
+            output_token_count=(
+                generation_result.final_provider_response.output_tokens
+                if generation_result.final_provider_response is not None
+                else None
+            ),
+            provider_latency_ms=(
+                generation_result.final_provider_response.latency_ms
+                if generation_result.final_provider_response is not None
+                else None
+            ),
+            validation_error_count=len(generation_result.validation_errors),
             duration_ms=round((perf_counter() - generation_started_at) * 1000, 2),
         )
         run_status = _to_llm_run_status(generation_result.status)

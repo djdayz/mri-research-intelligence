@@ -18,6 +18,7 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - Search and retrieval API for paginated paper lists, paper detail, content metadata, explicit chunk retrieval, filters, stable sorting, and related-resource links.
 - Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, fake/file/console delivery providers, and SMTP email delivery.
 - Scheduled one-shot digest and delivery-retry CLI commands suitable for cron, container schedulers, or cloud scheduled tasks.
+- Deterministic golden LLM evaluation command with machine-readable quality, token, latency, and estimated-cost metrics.
 - MVP hardening for duplicate insert recovery, digest idempotency, request correlation IDs, structured JSON logs, readiness checks, and a public API E2E workflow.
 
 ## Local Setup
@@ -65,6 +66,14 @@ Scheduled execution should invoke one-shot CLI commands from cron, a container s
 python -m mrinsight.cli digest run-due --rows 20
 python -m mrinsight.cli digest retry-deliveries --limit 20
 ```
+
+Run deterministic LLM regression evaluation without live provider calls:
+
+```bash
+python -m mrinsight.cli eval run --output var/evaluation/golden-report.json
+```
+
+Configured-provider evaluation requires `--allow-live` and may call OpenAI if `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY` are set.
 
 ## API Examples
 

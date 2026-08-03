@@ -163,6 +163,13 @@ class RunDigestPreviewService:
             candidates=tuple(persisted_candidates),
             minimum_relevance_score=subscription.minimum_relevance_score,
         )
+        log_event(
+            "digest_selection_completed",
+            subscription_id=subscription.id,
+            discovered_candidate_count=len(persisted_candidates),
+            selected_paper_count=len(selected_papers),
+            minimum_relevance_score=subscription.minimum_relevance_score,
+        )
         title = f"{subscription.name} digest preview"
         plain_text = render_digest_plain_text(title=title, papers=selected_papers)
         html = render_digest_html(title=title, papers=selected_papers)
@@ -237,6 +244,8 @@ class RunDigestPreviewService:
             succeeded=delivery_result.succeeded,
             attempt_count=delivery_result.attempt_count,
             retryable=delivery_result.retryable,
+            provider_response_id=delivery_result.provider_response_id,
+            error_type="delivery_failed" if delivery_result.error else None,
             duration_ms=round((perf_counter() - delivery_started_at) * 1000, 2),
         )
 
