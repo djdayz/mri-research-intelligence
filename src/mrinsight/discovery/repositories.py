@@ -99,6 +99,7 @@ class DiscoveryRepository(Protocol):
     def add_digest(
         self,
         *,
+        idempotency_key: str,
         subscription_id: int,
         topic_id: int | None,
         digest_date: date,

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from time import perf_counter
 
 from mrinsight.analysis import (
     ANALYSIS_SCHEMA_VERSION,
@@ -24,6 +25,7 @@ from mrinsight.application.services.select_analysis_content import (
     NoAnalyzableContentError,
     SelectAnalysisContentService,
 )
+from mrinsight.core.logging import log_event
 from mrinsight.papers.repositories import PaperChunkRepository, PaperRepository
 from mrinsight.relevance import RELEVANCE_MODEL_VERSION, RELEVANCE_RULES_VERSION
 
@@ -121,11 +123,23 @@ class AnalyzePaperService:
                 outcome=PaperAnalysisOutcome.CACHED,
             )
 
+        generation_started_at = perf_counter()
         generation_result = self.generation_service.execute(
             paper=paper,
             content=content,
             analysis_scope=selected_content.scope,
             chunks=selected_evidence.chunks,
+        )
+        log_event(
+            "llm_analysis_generation_completed",
+            provider=self.provider_name,
+            model=self.model_identifier,
+            paper_id=paper.id,
+            paper_content_id=content.id,
+            analysis_scope=selected_content.scope.value,
+            status=generation_result.status.value,
+            repair_attempt_count=generation_result.repair_attempt_count,
+            duration_ms=round((perf_counter() - generation_started_at) * 1000, 2),
         )
         run_status = _to_llm_run_status(generation_result.status)
         provider_response = generation_result.final_provider_response

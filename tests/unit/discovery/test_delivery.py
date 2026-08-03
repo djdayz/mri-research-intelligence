@@ -55,6 +55,7 @@ def test_fake_delivery_records_digest() -> None:
     provider = FakeDigestDeliveryProvider()
     digest = StoredDigest(
         id=1,
+        idempotency_key="digest-test",
         subscription_id=1,
         topic_id=1,
         digest_date=date(2026, 1, 1),

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from time import perf_counter
 
 from mrinsight.application.services.assess_relevance import AssessPaperRelevanceService
 from mrinsight.application.services.build_paper_chunks import BuildPaperChunksService
@@ -9,6 +10,7 @@ from mrinsight.application.services.select_analysis_content import (
 from mrinsight.application.services.store_abstract_content import (
     StoreAbstractContentService,
 )
+from mrinsight.core.logging import log_event
 from mrinsight.discovery import (
     DeliveryStatus,
     DigestPaper,
@@ -100,6 +102,7 @@ class RunDigestPreviewService:
                 until_publication_date=end_date,
             )
             try:
+                search_started_at = perf_counter()
                 search_result = self.discovery_provider.search(
                     DiscoverySearchRequest(
                         topic_query=query,
@@ -109,6 +112,17 @@ class RunDigestPreviewService:
                     )
                 )
             except DiscoveryProviderError as error:
+                log_event(
+                    "discovery_provider_search_failed",
+                    provider=self.discovery_provider.name,
+                    subscription_id=subscription.id,
+                    topic_id=topic.id if topic else None,
+                    duration_ms=round(
+                        (perf_counter() - search_started_at) * 1000,
+                        2,
+                    ),
+                    error_type=type(error).__name__,
+                )
                 completed_run = self.discovery_repository.complete_discovery_run(
                     run.id,
                     status=DiscoveryRunStatus.FAILED,
@@ -116,6 +130,14 @@ class RunDigestPreviewService:
                 )
                 runs.append(completed_run)
                 continue
+            log_event(
+                "discovery_provider_search_completed",
+                provider=self.discovery_provider.name,
+                subscription_id=subscription.id,
+                topic_id=topic.id if topic else None,
+                candidate_count=len(search_result.candidates),
+                duration_ms=round((perf_counter() - search_started_at) * 1000, 2),
+            )
 
             ranked_for_run = []
             for position, candidate in enumerate(search_result.candidates, start=1):
@@ -141,7 +163,12 @@ class RunDigestPreviewService:
         title = f"{subscription.name} digest preview"
         plain_text = render_digest_plain_text(title=title, papers=selected_papers)
         html = render_digest_html(title=title, papers=selected_papers)
+        digest_idempotency_key = (
+            f"digest-preview:{subscription.id}:{start_date.isoformat()}:"
+            f"{end_date.isoformat()}:{rows}"
+        )
         digest = self.discovery_repository.add_digest(
+            idempotency_key=digest_idempotency_key,
             subscription_id=subscription.id,
             topic_id=topics[0].id if topics else None,
             digest_date=end_date,
@@ -154,9 +181,17 @@ class RunDigestPreviewService:
             selected_papers=selected_papers,
             error=None,
         )
+        delivery_started_at = perf_counter()
         delivery_result = self.delivery_provider.deliver(
             digest,
             destination=subscription.delivery_destination,
+        )
+        log_event(
+            "digest_delivery_completed",
+            provider=delivery_result.provider,
+            digest_id=digest.id,
+            succeeded=delivery_result.succeeded,
+            duration_ms=round((perf_counter() - delivery_started_at) * 1000, 2),
         )
         delivery = self.discovery_repository.add_delivery(
             digest_id=digest.id,

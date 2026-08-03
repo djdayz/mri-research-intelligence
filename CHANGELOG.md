@@ -1,11 +1,7 @@
 # Changelog
 
-## Unreleased
+## 0.1.0
 
-- Added versioned MRI/CVR terminology ontology.
-- Added deterministic rule-based relevance scoring.
-- Added scikit-learn TF-IDF topic baseline.
-- Added PostgreSQL relevance assessment persistence.
-- Added `POST /papers/{paper_id}/relevance`.
-- Added relevance tests and implementation audit/progress documentation.
-- Added strict scientific-analysis schema, evidence validator, prompt templates, fake LLM provider, and bounded repair policy.
+- Added DOI ingestion, abstract/full-text evidence persistence, chunking, relevance scoring, structured LLM analysis, retrieval, subscriptions, discovery, and digest preview workflows.
+- Added MVP hardening for duplicate insert recovery, digest idempotency, readiness checks, request correlation IDs, structured JSON logs, and public API E2E coverage.
+- Documented local setup, quality gates, demo flow, deployment limits, and scientific limitations.

@@ -190,6 +190,7 @@ class StoredDigest:
     """Persisted digest."""
 
     id: int
+    idempotency_key: str
     subscription_id: int
     topic_id: int | None
     digest_date: date

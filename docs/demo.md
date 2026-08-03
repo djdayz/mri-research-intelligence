@@ -1,19 +1,32 @@
 # Demo
 
-Current local demo flow:
+## Local API Demo
 
-1. Start PostgreSQL.
-2. Load environment variables.
-3. Run `python -m alembic upgrade head`.
-4. Start `python -m uvicorn mrinsight.main:app --reload`.
-5. Ingest a DOI through the configured provider or test with the fake provider in automated tests.
-6. Upload a generated or permitted PDF.
-7. Compute relevance with `POST /papers/{paper_id}/relevance`.
+```bash
+set -a
+source .env
+set +a
+.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m mrinsight.cli seed demo
+MRINSIGHT_LLM_PROVIDER=fake .venv/bin/python -m uvicorn mrinsight.main:app --reload
+```
 
-Pending demo work:
+In another shell:
 
-- Seed command.
-- Fake-provider CLI workflow.
-- Fake structured analysis.
-- Subscription and digest preview.
-- Docker-based one-command demo.
+```bash
+BASE_URL=http://localhost:8000 DEMO_DOI=<crossref-resolvable-doi> ./scripts/demo_workflow.sh
+```
+
+The script checks `/health` and `/ready`, ingests a DOI through the configured bibliographic provider, computes relevance, generates an analysis with the configured LLM provider, and reads the retrieval views. Use `MRINSIGHT_LLM_PROVIDER=fake` for an offline analysis demo after metadata has been resolved. A live OpenAI run requires `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY`.
+
+## Digest Demo
+
+`python -m mrinsight.cli seed demo` creates a repeatable subscription named `Demo MRI CVR weekly digest`. Run a digest preview with:
+
+```bash
+.venv/bin/python -m mrinsight.cli digest run --subscription-id 1 --rows 10
+```
+
+When Crossref mailto settings are absent, discovery uses the deterministic empty fake provider. With `MRINSIGHT_CROSSREF_MAILTO` configured, the digest preview uses Crossref metadata search and writes previews through the file delivery provider under `var/digests`.
+
+See `docs/demo-fixture.json` for the canonical demo payloads.

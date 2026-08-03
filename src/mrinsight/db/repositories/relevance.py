@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from mrinsight.db.models import PaperRelevanceAssessment
+from mrinsight.db.repositories.conflicts import add_with_conflict_recovery
 from mrinsight.papers import AnalysisScope
 from mrinsight.relevance import (
     NewRelevanceAssessment,
@@ -54,31 +55,47 @@ class SqlAlchemyRelevanceAssessmentRepository:
     ) -> StoredRelevanceAssessment:
         """Persist a new assessment and flush without committing."""
 
-        model = PaperRelevanceAssessment(
-            paper_id=assessment.paper_id,
-            paper_content_id=assessment.paper_content_id,
-            analysis_scope=assessment.analysis_scope.value,
-            content_checksum=assessment.content_checksum,
-            rule_score=assessment.rule_score,
-            normalized_score=assessment.normalized_score,
-            rule_label=assessment.rule_label.value,
-            category_scores=assessment.category_scores,
-            matched_concepts=list(assessment.matched_concepts),
-            matched_terms=list(assessment.matched_terms),
-            supporting_locations=list(assessment.supporting_locations),
-            rule_version=assessment.rule_version,
-            ontology_version=assessment.ontology_version,
-            model_version=assessment.model_version,
-            tfidf_label=assessment.tfidf_label,
-            tfidf_confidence=assessment.tfidf_confidence,
-            explanation=assessment.explanation,
+        def insert() -> StoredRelevanceAssessment:
+            model = PaperRelevanceAssessment(
+                paper_id=assessment.paper_id,
+                paper_content_id=assessment.paper_content_id,
+                analysis_scope=assessment.analysis_scope.value,
+                content_checksum=assessment.content_checksum,
+                rule_score=assessment.rule_score,
+                normalized_score=assessment.normalized_score,
+                rule_label=assessment.rule_label.value,
+                category_scores=assessment.category_scores,
+                matched_concepts=list(assessment.matched_concepts),
+                matched_terms=list(assessment.matched_terms),
+                supporting_locations=list(assessment.supporting_locations),
+                rule_version=assessment.rule_version,
+                ontology_version=assessment.ontology_version,
+                model_version=assessment.model_version,
+                tfidf_label=assessment.tfidf_label,
+                tfidf_confidence=assessment.tfidf_confidence,
+                explanation=assessment.explanation,
+            )
+
+            self._session.add(model)
+            self._session.flush()
+            self._session.refresh(model)
+
+            return self._to_stored_assessment(model)
+
+        return add_with_conflict_recovery(
+            self._session,
+            insert=insert,
+            recover=lambda: self.get_current(
+                paper_id=assessment.paper_id,
+                paper_content_id=assessment.paper_content_id,
+                analysis_scope=assessment.analysis_scope,
+                content_checksum=assessment.content_checksum,
+                rule_version=assessment.rule_version,
+                ontology_version=assessment.ontology_version,
+                model_version=assessment.model_version,
+            ),
+            message="A duplicate relevance assessment could not be recovered.",
         )
-
-        self._session.add(model)
-        self._session.flush()
-        self._session.refresh(model)
-
-        return self._to_stored_assessment(model)
 
     @staticmethod
     def _to_stored_assessment(

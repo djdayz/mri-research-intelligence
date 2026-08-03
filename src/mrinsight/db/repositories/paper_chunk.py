@@ -6,6 +6,7 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from mrinsight.db.models import PaperChunk
+from mrinsight.db.repositories.conflicts import add_with_conflict_recovery
 from mrinsight.papers import (
     NewPaperChunk,
     SectionType,
@@ -41,33 +42,44 @@ class SqlAlchemyPaperChunkRepository:
     ) -> tuple[StoredPaperChunk, ...]:
         """Insert a complete chunk set without committing."""
 
-        models = [
-            PaperChunk(
-                paper_id=chunk.paper_id,
-                paper_content_id=chunk.paper_content_id,
-                section=chunk.section_type.value,
-                heading=chunk.heading,
-                sequence_number=chunk.sequence_number,
-                text=chunk.text,
-                start_char=chunk.start_char,
-                end_char=chunk.end_char,
-                paragraph_start_sequence=(chunk.paragraph_start_sequence),
-                paragraph_end_sequence=(chunk.paragraph_end_sequence),
-                token_count=chunk.token_count,
-                page_number=chunk.page_number,
-                end_page_number=chunk.end_page_number,
-                chunker_version=chunk.chunker_version,
-            )
-            for chunk in chunks
-        ]
+        if not chunks:
+            return ()
 
-        self._session.add_all(models)
-        self._session.flush()
+        def insert() -> tuple[StoredPaperChunk, ...]:
+            models = [
+                PaperChunk(
+                    paper_id=chunk.paper_id,
+                    paper_content_id=chunk.paper_content_id,
+                    section=chunk.section_type.value,
+                    heading=chunk.heading,
+                    sequence_number=chunk.sequence_number,
+                    text=chunk.text,
+                    start_char=chunk.start_char,
+                    end_char=chunk.end_char,
+                    paragraph_start_sequence=(chunk.paragraph_start_sequence),
+                    paragraph_end_sequence=(chunk.paragraph_end_sequence),
+                    token_count=chunk.token_count,
+                    page_number=chunk.page_number,
+                    end_page_number=chunk.end_page_number,
+                    chunker_version=chunk.chunker_version,
+                )
+                for chunk in chunks
+            ]
 
-        for model in models:
-            self._session.refresh(model)
+            self._session.add_all(models)
+            self._session.flush()
 
-        return tuple(self._to_stored_chunk(model) for model in models)
+            for model in models:
+                self._session.refresh(model)
+
+            return tuple(self._to_stored_chunk(model) for model in models)
+
+        return add_with_conflict_recovery(
+            self._session,
+            insert=insert,
+            recover=lambda: self.list_by_content(chunks[0].paper_content_id),
+            message="A duplicate chunk sequence insert could not be recovered.",
+        )
 
     def delete_by_content(
         self,

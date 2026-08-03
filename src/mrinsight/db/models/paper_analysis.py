@@ -8,6 +8,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -32,6 +33,20 @@ class PaperAnalysis(Base):
             "provider",
             "model",
             "prompt_version",
+        ),
+        Index(
+            "uq_paper_analyses_success_cache_identity",
+            "paper_id",
+            "paper_content_id",
+            "analysis_scope",
+            "content_checksum",
+            "selected_evidence_checksum",
+            "schema_version",
+            "provider",
+            "model",
+            "prompt_version",
+            unique=True,
+            postgresql_where=text("status = 'succeeded'"),
         ),
         CheckConstraint(
             "analysis_scope IN ('abstract_only', 'full_text')",

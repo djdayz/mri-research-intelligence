@@ -12,6 +12,7 @@ from mrinsight.analysis.records import (
     StoredPaperAnalysis,
 )
 from mrinsight.db.models import LLMRun, PaperAnalysis
+from mrinsight.db.repositories.conflicts import add_with_conflict_recovery
 from mrinsight.papers import AnalysisScope
 
 
@@ -158,28 +159,49 @@ class SqlAlchemyPaperAnalysisRepository:
     ) -> StoredPaperAnalysis:
         """Persist one paper analysis and flush without committing."""
 
-        model = PaperAnalysis(
-            paper_id=analysis.paper_id,
-            paper_content_id=analysis.paper_content_id,
-            analysis_scope=analysis.analysis_scope.value,
-            content_checksum=analysis.content_checksum,
-            selected_evidence_checksum=analysis.selected_evidence_checksum,
-            llm_run_id=analysis.llm_run_id,
-            schema_version=analysis.schema_version,
-            provider=analysis.provider,
-            model=analysis.model,
-            prompt_version=analysis.prompt_version,
-            validated_analysis=analysis.validated_analysis,
-            status=analysis.status.value,
-            validation_errors=list(analysis.validation_errors),
-            relevance_version=analysis.relevance_version,
+        def insert() -> StoredPaperAnalysis:
+            model = PaperAnalysis(
+                paper_id=analysis.paper_id,
+                paper_content_id=analysis.paper_content_id,
+                analysis_scope=analysis.analysis_scope.value,
+                content_checksum=analysis.content_checksum,
+                selected_evidence_checksum=analysis.selected_evidence_checksum,
+                llm_run_id=analysis.llm_run_id,
+                schema_version=analysis.schema_version,
+                provider=analysis.provider,
+                model=analysis.model,
+                prompt_version=analysis.prompt_version,
+                validated_analysis=analysis.validated_analysis,
+                status=analysis.status.value,
+                validation_errors=list(analysis.validation_errors),
+                relevance_version=analysis.relevance_version,
+            )
+
+            self._session.add(model)
+            self._session.flush()
+            self._session.refresh(model)
+
+            return self._to_stored_analysis(model)
+
+        if analysis.status is not PaperAnalysisStatus.SUCCEEDED:
+            return insert()
+
+        return add_with_conflict_recovery(
+            self._session,
+            insert=insert,
+            recover=lambda: self.get_current(
+                paper_id=analysis.paper_id,
+                paper_content_id=analysis.paper_content_id,
+                analysis_scope=analysis.analysis_scope,
+                content_checksum=analysis.content_checksum,
+                selected_evidence_checksum=analysis.selected_evidence_checksum,
+                schema_version=analysis.schema_version,
+                provider=analysis.provider,
+                model=analysis.model,
+                prompt_version=analysis.prompt_version,
+            ),
+            message="A duplicate paper analysis could not be recovered.",
         )
-
-        self._session.add(model)
-        self._session.flush()
-        self._session.refresh(model)
-
-        return self._to_stored_analysis(model)
 
     @staticmethod
     def _to_stored_analysis(

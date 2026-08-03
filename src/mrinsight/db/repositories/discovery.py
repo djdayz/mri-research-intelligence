@@ -14,6 +14,7 @@ from mrinsight.db.models import (
     SubscriptionTopic,
     Topic,
 )
+from mrinsight.db.repositories.conflicts import add_with_conflict_recovery
 from mrinsight.discovery.records import (
     DeliveryStatus,
     DigestCadence,
@@ -241,6 +242,7 @@ class SqlAlchemyDiscoveryRepository:
     def add_digest(
         self,
         *,
+        idempotency_key: str,
         subscription_id: int,
         topic_id: int | None,
         digest_date: date,
@@ -255,24 +257,35 @@ class SqlAlchemyDiscoveryRepository:
     ) -> StoredDigest:
         """Persist one digest."""
 
-        model = Digest(
-            subscription_id=subscription_id,
-            topic_id=topic_id,
-            digest_date=digest_date,
-            period_start=period_start,
-            period_end=period_end,
-            status=status.value,
-            title=title,
-            plain_text=plain_text,
-            html=html,
-            selected_papers=[_digest_paper_to_json(paper) for paper in selected_papers],
-            error=error,
-        )
-        self._session.add(model)
-        self._session.flush()
-        self._session.refresh(model)
+        def insert() -> StoredDigest:
+            model = Digest(
+                idempotency_key=idempotency_key,
+                subscription_id=subscription_id,
+                topic_id=topic_id,
+                digest_date=digest_date,
+                period_start=period_start,
+                period_end=period_end,
+                status=status.value,
+                title=title,
+                plain_text=plain_text,
+                html=html,
+                selected_papers=[
+                    _digest_paper_to_json(paper) for paper in selected_papers
+                ],
+                error=error,
+            )
+            self._session.add(model)
+            self._session.flush()
+            self._session.refresh(model)
 
-        return _to_digest(model)
+            return _to_digest(model)
+
+        return add_with_conflict_recovery(
+            self._session,
+            insert=insert,
+            recover=lambda: self.get_digest_by_idempotency_key(idempotency_key),
+            message="A duplicate digest insert could not be recovered.",
+        )
 
     def add_delivery(
         self,
@@ -286,20 +299,28 @@ class SqlAlchemyDiscoveryRepository:
     ) -> StoredDigestDelivery:
         """Persist one delivery attempt."""
 
-        model = DigestDelivery(
-            digest_id=digest_id,
-            provider=provider,
-            destination=destination,
-            status=status.value,
-            idempotency_key=idempotency_key,
-            error=error,
-            completed_at=datetime.now(UTC),
-        )
-        self._session.add(model)
-        self._session.flush()
-        self._session.refresh(model)
+        def insert() -> StoredDigestDelivery:
+            model = DigestDelivery(
+                digest_id=digest_id,
+                provider=provider,
+                destination=destination,
+                status=status.value,
+                idempotency_key=idempotency_key,
+                error=error,
+                completed_at=datetime.now(UTC),
+            )
+            self._session.add(model)
+            self._session.flush()
+            self._session.refresh(model)
 
-        return _to_digest_delivery(model)
+            return _to_digest_delivery(model)
+
+        return add_with_conflict_recovery(
+            self._session,
+            insert=insert,
+            recover=lambda: self.get_delivery_by_idempotency_key(idempotency_key),
+            message="A duplicate delivery insert could not be recovered.",
+        )
 
     def get_digest(
         self,
@@ -309,6 +330,32 @@ class SqlAlchemyDiscoveryRepository:
 
         model = self._session.get(Digest, digest_id)
         return _to_digest(model) if model is not None else None
+
+    def get_digest_by_idempotency_key(
+        self,
+        idempotency_key: str,
+    ) -> StoredDigest | None:
+        """Return one digest by idempotency key."""
+
+        model = self._session.execute(
+            select(Digest).where(Digest.idempotency_key == idempotency_key)
+        ).scalar_one_or_none()
+
+        return _to_digest(model) if model is not None else None
+
+    def get_delivery_by_idempotency_key(
+        self,
+        idempotency_key: str,
+    ) -> StoredDigestDelivery | None:
+        """Return one delivery by idempotency key."""
+
+        model = self._session.execute(
+            select(DigestDelivery).where(
+                DigestDelivery.idempotency_key == idempotency_key
+            )
+        ).scalar_one_or_none()
+
+        return _to_digest_delivery(model) if model is not None else None
 
     def _to_subscription(
         self,
@@ -417,6 +464,7 @@ def _to_digest(
 
     return StoredDigest(
         id=model.id,
+        idempotency_key=model.idempotency_key,
         subscription_id=model.subscription_id,
         topic_id=model.topic_id,
         digest_date=model.digest_date,

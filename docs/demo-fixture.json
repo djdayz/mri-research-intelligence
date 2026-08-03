@@ -1,0 +1,17 @@
+{
+  "paper": {
+    "doi": "<crossref-resolvable-doi>"
+  },
+  "subscription": {
+    "name": "Demo MRI CVR weekly digest",
+    "discovery_query": "MRI cerebrovascular reactivity BOLD",
+    "topic_ids": [1],
+    "minimum_relevance_score": 0,
+    "preferred_categories": ["mri", "cvr"],
+    "digest_cadence": "weekly",
+    "delivery_destination": "var/digests"
+  },
+  "digest_preview": {
+    "rows": 10
+  }
+}

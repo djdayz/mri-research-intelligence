@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from mrinsight.api.dependencies import (
@@ -18,6 +19,7 @@ from mrinsight.application.services import (
     SelectAnalysisContentService,
     StoreAbstractContentService,
 )
+from mrinsight.db.models import Subscription
 from mrinsight.db.repositories import (
     SqlAlchemyDiscoveryRepository,
     SqlAlchemyPaperChunkRepository,
@@ -25,6 +27,9 @@ from mrinsight.db.repositories import (
     SqlAlchemyPaperRepository,
     SqlAlchemyRelevanceAssessmentRepository,
 )
+from mrinsight.discovery import DigestCadence, NewSubscription
+
+DEMO_SUBSCRIPTION_NAME = "Demo MRI CVR weekly digest"
 
 
 def main(
@@ -42,6 +47,12 @@ def main(
     run_parser = digest_subparsers.add_parser("run")
     run_parser.add_argument("--subscription-id", type=int, required=True)
     run_parser.add_argument("--rows", type=int, default=20)
+    seed_parser = subparsers.add_parser("seed")
+    seed_subparsers = seed_parser.add_subparsers(
+        dest="seed_command",
+        required=True,
+    )
+    seed_subparsers.add_parser("demo")
 
     args = parser.parse_args(argv)
 
@@ -50,6 +61,8 @@ def main(
             subscription_id=args.subscription_id,
             rows=args.rows,
         )
+    if args.command == "seed" and args.seed_command == "demo":
+        return _seed_demo()
 
     parser.error("Unsupported command.")
     return 2
@@ -73,6 +86,59 @@ def _run_digest_preview(
         f"{len(result.digest.selected_papers)} papers."
     )
     return 0
+
+
+def _seed_demo() -> int:
+    """Create repeatable local demo records."""
+
+    session_factory = get_database_session_factory()
+    with session_factory() as session:
+        repository = SqlAlchemyDiscoveryRepository(session)
+        existing_subscription = _find_subscription_by_name(
+            session,
+            DEMO_SUBSCRIPTION_NAME,
+        )
+        if existing_subscription is not None:
+            session.commit()
+            print(
+                f"Demo subscription already exists with id {existing_subscription.id}."
+            )
+            return 0
+
+        topics = repository.list_topics()
+        if not topics:
+            raise RuntimeError("No enabled topics exist. Run Alembic migrations first.")
+
+        preferred_topic = next(
+            (topic for topic in topics if topic.slug == "mri-cvr-mapping"),
+            topics[0],
+        )
+        subscription = repository.add_subscription(
+            NewSubscription(
+                name=DEMO_SUBSCRIPTION_NAME,
+                discovery_query="MRI cerebrovascular reactivity BOLD",
+                topic_ids=(preferred_topic.id,),
+                minimum_relevance_score=0.0,
+                preferred_categories=("mri", "cvr"),
+                digest_cadence=DigestCadence.WEEKLY,
+                delivery_destination="var/digests",
+            )
+        )
+        session.commit()
+
+    print(f"Created demo subscription {subscription.id}.")
+    return 0
+
+
+def _find_subscription_by_name(
+    session: Session,
+    name: str,
+) -> Subscription | None:
+    """Return a subscription model by exact demo name."""
+
+    return session.execute(
+        select(Subscription).where(Subscription.name == name)
+    ).scalar_one_or_none()
 
 
 def _build_digest_service(
