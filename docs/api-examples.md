@@ -122,3 +122,11 @@ CLI deterministic evaluation:
 ```bash
 python -m mrinsight.cli eval run --output var/evaluation/golden-report.json
 ```
+
+Local Docker stack:
+
+```bash
+docker compose up --build api
+docker compose --profile jobs run --rm digest-run-due
+docker compose --profile jobs run --rm digest-retry-deliveries
+```

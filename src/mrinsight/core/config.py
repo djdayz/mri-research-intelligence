@@ -22,6 +22,22 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     database_url: str
     test_database_url: str | None = None
+    database_pool_size: int = Field(
+        default=5,
+        ge=1,
+    )
+    database_max_overflow: int = Field(
+        default=10,
+        ge=0,
+    )
+    database_pool_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0,
+    )
+    database_pool_recycle_seconds: int = Field(
+        default=1800,
+        ge=1,
+    )
 
     crossref_mailto: str | None = None
     crossref_base_url: str = "https://api.crossref.org"

@@ -45,7 +45,7 @@ from mrinsight.db.repositories import (
     SqlAlchemyRelevanceAssessmentRepository,
 )
 from mrinsight.db.session import (
-    create_database_engine,
+    create_pooled_database_engine,
     create_session_factory,
 )
 from mrinsight.discovery import (
@@ -87,7 +87,13 @@ def get_database_engine() -> Engine:
 
     settings = get_settings()
 
-    return create_database_engine(settings.database_url)
+    return create_pooled_database_engine(
+        settings.database_url,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
+        pool_timeout_seconds=settings.database_pool_timeout_seconds,
+        pool_recycle_seconds=settings.database_pool_recycle_seconds,
+    )
 
 
 @lru_cache

@@ -54,3 +54,11 @@ These commands run once and exit, which makes them suitable for cron or a contai
 .venv/bin/python -m mrinsight.cli digest run-due --rows 20
 .venv/bin/python -m mrinsight.cli digest retry-deliveries --limit 20
 ```
+
+## Docker Demo
+
+```bash
+docker compose up --build api
+```
+
+The API is available at `http://localhost:8000` after the `migrate` service applies Alembic migrations. Use `docker compose --profile jobs run --rm digest-run-due` to exercise the scheduled digest command in the same container environment.
