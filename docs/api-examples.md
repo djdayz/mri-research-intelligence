@@ -116,3 +116,9 @@ python -m mrinsight.cli digest run --subscription-id 1 --rows 10
 python -m mrinsight.cli digest run-due --rows 20
 python -m mrinsight.cli digest retry-deliveries --limit 20
 ```
+
+CLI deterministic evaluation:
+
+```bash
+python -m mrinsight.cli eval run --output var/evaluation/golden-report.json
+```
