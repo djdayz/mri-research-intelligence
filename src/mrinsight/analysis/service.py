@@ -25,6 +25,7 @@ from mrinsight.analysis.schema import (
 )
 from mrinsight.analysis.validation import (
     AnalysisEvidenceValidator,
+    canonicalize_analysis_evidence_references,
 )
 from mrinsight.papers import AnalysisScope, StoredPaperChunk
 from mrinsight.papers.content_records import StoredPaperContent
@@ -265,6 +266,10 @@ class GeneratePaperAnalysisService:
         except ValidationError as error:
             return None, tuple(str(item) for item in error.errors())
 
+        analysis = canonicalize_analysis_evidence_references(
+            analysis=analysis,
+            chunks=chunks,
+        )
         evidence_result = self._validator.validate(
             analysis=analysis,
             paper=paper,

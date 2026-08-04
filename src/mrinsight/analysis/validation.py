@@ -100,6 +100,59 @@ class AnalysisEvidenceValidator:
         )
 
 
+def canonicalize_analysis_evidence_references(
+    *,
+    analysis: ScientificPaperAnalysis,
+    chunks: tuple[StoredPaperChunk, ...],
+) -> ScientificPaperAnalysis:
+    """Replace generated reference coordinates with persisted chunk coordinates."""
+
+    chunk_by_id = {chunk.id: chunk for chunk in chunks}
+    updates: dict[str, object] = {}
+
+    for field_name, statement in _iter_evidence_backed_statements(analysis):
+        canonical_statement = _canonicalize_statement(
+            statement=statement,
+            chunk_by_id=chunk_by_id,
+        )
+        if "[" in field_name:
+            continue
+        updates[field_name] = canonical_statement
+
+    for field_name in (
+        "methodology_steps",
+        "key_results",
+        "strengths",
+        "limitations",
+        "suggested_improvements",
+        "reproducibility_notes",
+        "uncertainty",
+        "missing_information",
+    ):
+        values = getattr(analysis, field_name)
+        updates[field_name] = tuple(
+            _canonicalize_statement(
+                statement=value,
+                chunk_by_id=chunk_by_id,
+            )
+            for value in values
+        )
+
+    updates["numerical_results"] = tuple(
+        result.model_copy(
+            update={
+                "evidence_reference": _canonicalize_reference(
+                    reference=result.evidence_reference,
+                    chunk_by_id=chunk_by_id,
+                )
+            }
+        )
+        for result in analysis.numerical_results
+    )
+
+    return analysis.model_copy(update=updates)
+
+
 def _iter_evidence_backed_statements(
     analysis: ScientificPaperAnalysis,
 ) -> tuple[tuple[str, EvidenceBackedText], ...]:
@@ -137,6 +190,57 @@ def _iter_evidence_backed_statements(
         )
 
     return tuple(statements)
+
+
+def _canonicalize_statement(
+    *,
+    statement: EvidenceBackedText,
+    chunk_by_id: dict[int, StoredPaperChunk],
+) -> EvidenceBackedText:
+    """Return a statement whose references use persisted chunk coordinates."""
+
+    if not statement.evidence_references:
+        return statement
+
+    return statement.model_copy(
+        update={
+            "evidence_references": tuple(
+                _canonicalize_reference(
+                    reference=reference,
+                    chunk_by_id=chunk_by_id,
+                )
+                for reference in statement.evidence_references
+            )
+        }
+    )
+
+
+def _canonicalize_reference(
+    *,
+    reference: EvidenceReference,
+    chunk_by_id: dict[int, StoredPaperChunk],
+) -> EvidenceReference:
+    """Return a reference aligned to its persisted chunk when safely possible."""
+
+    chunk = chunk_by_id.get(reference.chunk_id)
+
+    if chunk is None:
+        return reference
+
+    if reference.excerpt is not None and reference.excerpt not in chunk.text:
+        return reference
+
+    return reference.model_copy(
+        update={
+            "paper_id": chunk.paper_id,
+            "content_id": chunk.paper_content_id,
+            "section": chunk.section_type,
+            "start_page": chunk.page_number,
+            "end_page": chunk.end_page_number,
+            "start_char": chunk.start_char,
+            "end_char": chunk.end_char,
+        }
+    )
 
 
 def _validate_reference(
