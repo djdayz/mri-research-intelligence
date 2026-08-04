@@ -227,8 +227,11 @@ def _canonicalize_reference(
     if chunk is None:
         return reference
 
-    if reference.excerpt is not None and reference.excerpt not in chunk.text:
-        return reference
+    excerpt = (
+        reference.excerpt
+        if reference.excerpt is not None and reference.excerpt in chunk.text
+        else chunk.text
+    )
 
     return reference.model_copy(
         update={
@@ -239,6 +242,7 @@ def _canonicalize_reference(
             "end_page": chunk.end_page_number,
             "start_char": chunk.start_char,
             "end_char": chunk.end_char,
+            "excerpt": excerpt,
         }
     )
 
