@@ -48,6 +48,8 @@ def test_deploy_workflow_builds_scans_publishes_and_runs_migrations() -> None:
     assert "docker push" in workflow
     assert "DEPLOY_MIGRATE_COMMAND" in workflow
     assert "DEPLOY_RELEASE_COMMAND" in workflow
+    assert "export IMAGE_TAG=%q" in workflow
+    assert "'bash -s' < \"$release_script\"" in workflow
 
 
 def test_kubernetes_manifest_has_readiness_migration_and_cronjobs() -> None:

@@ -190,7 +190,13 @@ jobs:
           DEPLOY_RELEASE_COMMAND: ${{ secrets.DEPLOY_RELEASE_COMMAND }}
           IMAGE_TAG: ${{ needs.image.outputs.image_tag }}
         run: |
+          set -euo pipefail
           test -n "$DEPLOY_RELEASE_COMMAND"
+          release_script="$(mktemp)"
+          {
+            printf 'set -euo pipefail\n'
+            printf 'export IMAGE_TAG=%q\n' "$IMAGE_TAG"
+            printf '%s\n' "$DEPLOY_RELEASE_COMMAND"
+          } > "$release_script"
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
-            "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" \
-            "IMAGE_TAG='$IMAGE_TAG' $DEPLOY_RELEASE_COMMAND"
+            "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" 'bash -s' < "$release_script"
