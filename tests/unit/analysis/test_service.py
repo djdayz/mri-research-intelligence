@@ -1,3 +1,5 @@
+import json
+
 from tests.unit.analysis.helpers import make_chunk, make_content, make_paper
 
 from mrinsight.analysis import (
@@ -7,6 +9,8 @@ from mrinsight.analysis import (
     FakeLLMMode,
     FakeLLMProvider,
     GeneratePaperAnalysisService,
+    LLMRequest,
+    LLMResponse,
 )
 from mrinsight.papers import AnalysisScope
 
@@ -47,6 +51,30 @@ def test_valid_first_response_succeeds() -> None:
     assert result.analysis is not None
     assert result.repair_attempt_count == 0
     assert provider.call_count == 1
+
+
+def test_live_style_excerpt_offsets_are_canonicalized() -> None:
+    chunk = make_chunk()
+    provider = OffsetOnlyLLMProvider()
+    service = GeneratePaperAnalysisService(
+        provider=provider,
+        validator=AnalysisEvidenceValidator(),
+        model_identifier="offset-only-model",
+    )
+
+    result = service.execute(
+        paper=make_paper(),
+        content=make_content(),
+        analysis_scope=AnalysisScope.ABSTRACT_ONLY,
+        chunks=(chunk,),
+    )
+
+    assert result.status is AnalysisGenerationStatus.VALID
+    assert result.analysis is not None
+    assert result.analysis.objective.evidence_references[0].start_char == (
+        chunk.start_char
+    )
+    assert result.analysis.objective.evidence_references[0].end_char == chunk.end_char
 
 
 def test_repairable_malformed_json_repairs_once() -> None:
@@ -108,3 +136,52 @@ def test_provider_timeout_fails_honestly() -> None:
     assert result.analysis is None
     assert result.repair_attempt_count == 0
     assert provider.call_count == 1
+
+
+class OffsetOnlyLLMProvider:
+    """Fake a live model that cites the right chunk but excerpt-level offsets."""
+
+    def __init__(self) -> None:
+        self._provider = FakeLLMProvider(mode=FakeLLMMode.VALID)
+
+    @property
+    def name(self) -> str:
+        """Return the provider name."""
+
+        return "offset-only"
+
+    def complete(
+        self,
+        request: LLMRequest,
+    ) -> LLMResponse:
+        """Return valid analysis JSON with non-canonical evidence offsets."""
+
+        response = self._provider.complete(request)
+        payload = json.loads(response.raw_text)
+        _rewrite_reference_offsets(payload)
+
+        return LLMResponse(
+            provider_name=self.name,
+            model_identifier="offset-only-model",
+            raw_text=json.dumps(payload),
+            provider_request_id=response.provider_request_id,
+            input_tokens=response.input_tokens,
+            output_tokens=response.output_tokens,
+            latency_ms=response.latency_ms,
+        )
+
+
+def _rewrite_reference_offsets(
+    value: object,
+) -> None:
+    """Recursively rewrite evidence references to excerpt-level offsets."""
+
+    if isinstance(value, dict):
+        if {"chunk_id", "start_char", "end_char"}.issubset(value):
+            value["start_char"] = 4
+            value["end_char"] = 15
+        for child in value.values():
+            _rewrite_reference_offsets(child)
+    elif isinstance(value, list):
+        for child in value:
+            _rewrite_reference_offsets(child)
