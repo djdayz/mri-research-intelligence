@@ -75,6 +75,7 @@ def test_live_style_excerpt_offsets_are_canonicalized() -> None:
         chunk.start_char
     )
     assert result.analysis.objective.evidence_references[0].end_char == chunk.end_char
+    assert result.analysis.objective.evidence_references[0].excerpt == chunk.text
 
 
 def test_repairable_malformed_json_repairs_once() -> None:
@@ -159,6 +160,7 @@ class OffsetOnlyLLMProvider:
         response = self._provider.complete(request)
         payload = json.loads(response.raw_text)
         _rewrite_reference_offsets(payload)
+        _rewrite_reference_excerpts(payload)
 
         return LLMResponse(
             provider_name=self.name,
@@ -185,3 +187,18 @@ def _rewrite_reference_offsets(
     elif isinstance(value, list):
         for child in value:
             _rewrite_reference_offsets(child)
+
+
+def _rewrite_reference_excerpts(
+    value: object,
+) -> None:
+    """Recursively rewrite evidence excerpts to live-style paraphrases."""
+
+    if isinstance(value, dict):
+        if {"chunk_id", "excerpt"}.issubset(value):
+            value["excerpt"] = "MRI methods described a reported value."
+        for child in value.values():
+            _rewrite_reference_excerpts(child)
+    elif isinstance(value, list):
+        for child in value:
+            _rewrite_reference_excerpts(child)
