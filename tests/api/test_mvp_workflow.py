@@ -59,7 +59,7 @@ def mvp_client(
                 doi="10.1234/mvp.discovery",
                 abstract=(
                     "Cerebrovascular reactivity was measured with BOLD MRI. "
-                    "Methods included CVR mapping and results reported group effects."
+                    "Methods included CVR mapping and results reported 2.5 units."
                 ),
                 journal="Journal of MRI Research",
                 publication_date=date(2026, 4, 2),
@@ -170,9 +170,17 @@ def test_mvp_public_api_workflow(
     assert digest_body["candidate_count"] == 1
     assert digest_body["delivery_status"] == "succeeded"
     assert digest_body["digest"]["idempotency_key"].startswith("digest-preview:")
-    assert digest_body["digest"]["selected_papers"][0]["doi"] == (
-        "10.1234/mvp.discovery"
+    selected = digest_body["digest"]["selected_papers"][0]
+    assert selected["doi"] == "10.1234/mvp.discovery"
+    assert selected["concise_summary"] == (
+        "The paper studies MRI evidence using supplied chunks."
     )
+    assert selected["main_results"] == [
+        "The paper studies MRI evidence using supplied chunks."
+    ]
+    assert selected["limitations"] == [
+        "No limitations were reported in the supplied evidence."
+    ]
 
     digest = mvp_client.get(f"/digests/{digest_body['digest']['id']}")
     assert digest.status_code == 200

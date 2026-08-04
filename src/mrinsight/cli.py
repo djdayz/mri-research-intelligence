@@ -8,7 +8,12 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from mrinsight.analysis import LLMProvider
+from mrinsight.analysis import (
+    AnalysisEvidenceValidator,
+    EvidenceSelectionService,
+    GeneratePaperAnalysisService,
+    LLMProvider,
+)
 from mrinsight.api.dependencies import (
     get_database_session_factory,
     get_digest_delivery_provider,
@@ -17,6 +22,7 @@ from mrinsight.api.dependencies import (
     get_rule_based_relevance_scorer,
 )
 from mrinsight.application.services import (
+    AnalyzePaperService,
     AssessPaperRelevanceService,
     BuildPaperChunksService,
     RunDigestPreviewService,
@@ -27,6 +33,8 @@ from mrinsight.core.config import get_settings
 from mrinsight.db.models import Subscription
 from mrinsight.db.repositories import (
     SqlAlchemyDiscoveryRepository,
+    SqlAlchemyLLMRunRepository,
+    SqlAlchemyPaperAnalysisRepository,
     SqlAlchemyPaperChunkRepository,
     SqlAlchemyPaperContentRepository,
     SqlAlchemyPaperRepository,
@@ -322,12 +330,33 @@ def _build_digest_service(
 ) -> RunDigestPreviewService:
     """Construct digest workflow service for CLI."""
 
+    settings = get_settings()
+    llm_provider = get_llm_provider()
     discovery_repository = SqlAlchemyDiscoveryRepository(session)
     paper_repository = SqlAlchemyPaperRepository(session)
     content_repository = SqlAlchemyPaperContentRepository(session)
     chunk_repository = SqlAlchemyPaperChunkRepository(session)
+    analysis_repository = SqlAlchemyPaperAnalysisRepository(session)
+    llm_run_repository = SqlAlchemyLLMRunRepository(session)
     relevance_repository = SqlAlchemyRelevanceAssessmentRepository(session)
     content_selector = SelectAnalysisContentService(content_repository)
+    analysis_service = AnalyzePaperService(
+        paper_repository=paper_repository,
+        content_selector=content_selector,
+        chunk_repository=chunk_repository,
+        analysis_repository=analysis_repository,
+        llm_run_repository=llm_run_repository,
+        evidence_selector=EvidenceSelectionService(
+            max_prompt_tokens=settings.llm_prompt_budget_tokens,
+        ),
+        generation_service=GeneratePaperAnalysisService(
+            provider=llm_provider,
+            validator=AnalysisEvidenceValidator(),
+            model_identifier=settings.llm_model,
+        ),
+        provider_name=llm_provider.name,
+        model_identifier=settings.llm_model,
+    )
 
     return RunDigestPreviewService(
         discovery_repository=discovery_repository,
@@ -342,7 +371,8 @@ def _build_digest_service(
         ),
         discovery_provider=get_discovery_provider(),
         delivery_provider=get_digest_delivery_provider(),
-        delivery_retry_delay_seconds=get_settings().digest_delivery_retry_delay_seconds,
+        analysis_service=analysis_service,
+        delivery_retry_delay_seconds=settings.digest_delivery_retry_delay_seconds,
     )
 
 
