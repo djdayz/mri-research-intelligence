@@ -1,9 +1,15 @@
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from time import perf_counter
+from typing import Any
 
+from mrinsight.application.services.analyze_paper import (
+    AnalyzePaperService,
+    PaperAnalysisOutcome,
+)
 from mrinsight.application.services.assess_relevance import AssessPaperRelevanceService
 from mrinsight.application.services.build_paper_chunks import BuildPaperChunksService
+from mrinsight.application.services.ingest_full_text import PaperNotFoundError
 from mrinsight.application.services.select_analysis_content import (
     NoAnalyzableContentError,
 )
@@ -66,6 +72,7 @@ class RunDigestPreviewService:
     relevance_service: AssessPaperRelevanceService
     discovery_provider: DiscoveryProvider
     delivery_provider: DigestDeliveryProvider
+    analysis_service: AnalyzePaperService | None = None
     delivery_retry_delay_seconds: int = 900
 
     def execute(
@@ -163,6 +170,7 @@ class RunDigestPreviewService:
             candidates=tuple(persisted_candidates),
             minimum_relevance_score=subscription.minimum_relevance_score,
         )
+        selected_papers = self._enrich_digest_papers(selected_papers)
         log_event(
             "digest_selection_completed",
             subscription_id=subscription.id,
@@ -203,6 +211,47 @@ class RunDigestPreviewService:
             candidates=tuple(persisted_candidates),
             digest=digest,
             delivery=delivery,
+        )
+
+    def _enrich_digest_papers(
+        self,
+        papers: tuple[DigestPaper, ...],
+    ) -> tuple[DigestPaper, ...]:
+        """Add cached or newly generated LLM analysis summaries to digest papers."""
+
+        if self.analysis_service is None:
+            return papers
+
+        return tuple(self._enrich_digest_paper(paper) for paper in papers)
+
+    def _enrich_digest_paper(
+        self,
+        paper: DigestPaper,
+    ) -> DigestPaper:
+        """Return one digest paper with analysis-derived summary fields."""
+
+        if self.analysis_service is None:
+            return paper
+
+        try:
+            result = self.analysis_service.execute(paper.paper_id)
+        except (PaperNotFoundError, NoAnalyzableContentError):
+            return paper
+
+        if result.outcome not in {
+            PaperAnalysisOutcome.CREATED,
+            PaperAnalysisOutcome.CACHED,
+        }:
+            return paper
+
+        analysis = result.analysis.validated_analysis
+        if analysis is None:
+            return paper
+
+        return _digest_paper_from_analysis(
+            paper=paper,
+            analysis=analysis,
+            analysis_scope=result.analysis.analysis_scope.value,
         )
 
     def _deliver_digest(
@@ -352,11 +401,13 @@ def _select_digest_papers(
     """Select and rank digest papers from persisted candidates."""
 
     ranked = sorted(
-        (
-            candidate
-            for candidate in candidates
-            if candidate.paper_id is not None
-            and (candidate.relevance_score or 0.0) >= minimum_relevance_score
+        _deduplicate_digest_candidates(
+            tuple(
+                candidate
+                for candidate in candidates
+                if candidate.paper_id is not None
+                and (candidate.relevance_score or 0.0) >= minimum_relevance_score
+            )
         ),
         key=lambda item: (
             -(item.relevance_score or 0.0),
@@ -400,3 +451,212 @@ def _select_digest_papers(
         )
         for candidate in ranked[:10]
     )
+
+
+def _deduplicate_digest_candidates(
+    candidates: tuple[StoredDiscoveryCandidate, ...],
+) -> tuple[StoredDiscoveryCandidate, ...]:
+    """Keep the best-ranked candidate for each paper identity."""
+
+    best_by_key: dict[tuple[str, object], StoredDiscoveryCandidate] = {}
+    for candidate in candidates:
+        key: tuple[str, object]
+        if candidate.paper_id is not None:
+            key = ("paper", candidate.paper_id)
+        elif candidate.normalized_doi is not None:
+            key = ("doi", candidate.normalized_doi)
+        else:
+            key = ("title", candidate.normalized_title)
+
+        existing = best_by_key.get(key)
+        if existing is None or _candidate_rank_key(candidate) < _candidate_rank_key(
+            existing
+        ):
+            best_by_key[key] = candidate
+
+    return tuple(best_by_key.values())
+
+
+def _candidate_rank_key(
+    candidate: StoredDiscoveryCandidate,
+) -> tuple[float, str, int]:
+    """Return an ascending sort key for candidate quality."""
+
+    return (
+        -(candidate.relevance_score or 0.0),
+        candidate.title.casefold(),
+        candidate.id,
+    )
+
+
+def _digest_paper_from_analysis(
+    *,
+    paper: DigestPaper,
+    analysis: dict[str, Any],
+    analysis_scope: str,
+) -> DigestPaper:
+    """Build digest summary fields from one validated paper analysis."""
+
+    concise_summary = (
+        _statement_text(analysis, "clinical_or_scientific_significance")
+        or _statement_text(analysis, "objective")
+        or paper.concise_summary
+    )
+    methodology_highlights = _first_non_empty(
+        _statement_list(analysis, "methodology_steps", limit=3),
+        _statement_values(
+            analysis,
+            (
+                "study_design",
+                "acquisition_details",
+                "preprocessing",
+                "model_or_statistical_methods",
+                "validation_design",
+                "comparison_methods",
+            ),
+            limit=3,
+        ),
+        paper.methodology_highlights,
+    )
+    main_results = _first_non_empty(
+        _statement_list(analysis, "key_results", limit=3),
+        _numerical_result_values(analysis, limit=3),
+        paper.main_results,
+    )
+    limitations = _first_non_empty(
+        _statement_list(analysis, "limitations", limit=3),
+        _statement_list(analysis, "uncertainty", limit=2),
+        ("No limitations were reported in the supplied evidence.",),
+    )
+
+    return DigestPaper(
+        paper_id=paper.paper_id,
+        doi=paper.doi,
+        title=paper.title,
+        journal=paper.journal,
+        publication_date=paper.publication_date,
+        relevance_score=paper.relevance_score,
+        analysis_scope=analysis_scope,
+        concise_summary=concise_summary,
+        methodology_highlights=methodology_highlights,
+        main_results=main_results,
+        limitations=limitations,
+        link=paper.link,
+        provenance=f"{paper.provenance} LLM analysis summarized.",
+        ranking_explanation=paper.ranking_explanation,
+    )
+
+
+def _first_non_empty(
+    *values: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Return the first non-empty tuple."""
+
+    for value in values:
+        if value:
+            return value
+    return ()
+
+
+def _statement_values(
+    analysis: dict[str, Any],
+    field_names: tuple[str, ...],
+    *,
+    limit: int,
+) -> tuple[str, ...]:
+    """Return reportable texts from multiple statement fields."""
+
+    values: list[str] = []
+    for field_name in field_names:
+        value = _statement_text(analysis, field_name)
+        if value is not None:
+            values.append(value)
+        if len(values) >= limit:
+            break
+
+    return tuple(values)
+
+
+def _statement_list(
+    analysis: dict[str, Any],
+    field_name: str,
+    *,
+    limit: int,
+) -> tuple[str, ...]:
+    """Return reportable texts from a list-valued statement field."""
+
+    values = analysis.get(field_name)
+    if not isinstance(values, list):
+        return ()
+
+    texts = [
+        text
+        for item in values
+        if isinstance(item, dict)
+        for text in (_text_if_reported(item),)
+        if text is not None
+    ]
+    return tuple(texts[:limit])
+
+
+def _statement_text(
+    analysis: dict[str, Any],
+    field_name: str,
+) -> str | None:
+    """Return one reportable text field from analysis JSON."""
+
+    value = analysis.get(field_name)
+    if not isinstance(value, dict):
+        return None
+
+    return _text_if_reported(value)
+
+
+def _text_if_reported(
+    statement: dict[str, Any],
+) -> str | None:
+    """Return statement text only when supplied evidence supports it."""
+
+    if statement.get("status") not in {"reported", "uncertain"}:
+        return None
+
+    text = statement.get("text")
+    return text if isinstance(text, str) and text.strip() else None
+
+
+def _numerical_result_values(
+    analysis: dict[str, Any],
+    *,
+    limit: int,
+) -> tuple[str, ...]:
+    """Return compact display strings for numerical results."""
+
+    values = analysis.get("numerical_results")
+    if not isinstance(values, list):
+        return ()
+
+    results: list[str] = []
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        metric = value.get("metric")
+        value_text = value.get("value_text")
+        numeric_value = value.get("value")
+        if not isinstance(metric, str):
+            continue
+        result_value = (
+            value_text
+            if isinstance(value_text, str)
+            else str(numeric_value)
+            if numeric_value is not None
+            else None
+        )
+        if result_value is None:
+            continue
+        unit = value.get("unit")
+        suffix = f" {unit}" if isinstance(unit, str) else ""
+        results.append(f"{metric}: {result_value}{suffix}.")
+        if len(results) >= limit:
+            break
+
+    return tuple(results)

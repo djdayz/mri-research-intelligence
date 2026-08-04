@@ -615,6 +615,10 @@ def get_run_digest_preview_service(
         DigestDeliveryProvider,
         Depends(get_digest_delivery_provider),
     ],
+    analysis_service: Annotated[
+        AnalyzePaperService,
+        Depends(get_analyze_paper_service),
+    ],
 ) -> RunDigestPreviewService:
     """Construct digest preview workflow service."""
 
@@ -627,6 +631,7 @@ def get_run_digest_preview_service(
         relevance_service=relevance_service,
         discovery_provider=discovery_provider,
         delivery_provider=delivery_provider,
+        analysis_service=analysis_service,
         delivery_retry_delay_seconds=settings.digest_delivery_retry_delay_seconds,
     )
 
