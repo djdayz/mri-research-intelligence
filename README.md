@@ -16,10 +16,11 @@ The project is intentionally evidence-first. Abstract-only content is kept disti
 - Strict scientific-analysis schema, fake LLM provider contract, OpenAI Responses API adapter, prompt versioning, deterministic evidence selection, evidence validation, and bounded one-repair invalid-output policy.
 - `LLMRun` and `PaperAnalysis` persistence with provider/model/prompt/schema/input checksums, selected chunk IDs, token usage, request IDs, latency, status, validation errors, and cache-aware analysis retrieval.
 - Search and retrieval API for paginated paper lists, paper detail, content metadata, explicit chunk retrieval, filters, stable sorting, and related-resource links.
-- Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, fake/file/console delivery providers, and SMTP email delivery.
+- Topic subscriptions, Crossref discovery search, deterministic fake discovery, DOI/title-year deduplication, discovery run/candidate persistence, digest preview rendering, LLM-enriched digest summaries for selected papers, fake/file/console delivery providers, and SMTP email delivery.
 - Scheduled one-shot digest and delivery-retry CLI commands suitable for cron, container schedulers, or cloud scheduled tasks.
 - Deterministic golden LLM evaluation command with machine-readable quality, token, latency, and estimated-cost metrics.
 - Production Dockerfile, local Docker Compose stack, Kubernetes deployment template, and gated CI/CD workflow scaffolding.
+- GitHub Actions deployment to a containerized AWS EC2 private-beta environment, with images published to GitHub Container Registry and release commands executed over SSH.
 - MVP hardening for duplicate insert recovery, digest idempotency, request correlation IDs, structured JSON logs, readiness checks, and a public API E2E workflow.
 - Portfolio case study, architecture diagrams, and synthetic demonstration assets suitable for employer review.
 
@@ -62,6 +63,8 @@ Repository writes that have natural uniqueness constraints recover from duplicat
 
 Digest delivery can run through `file`, `console`, or `smtp` providers. SMTP requires `MRINSIGHT_DIGEST_DELIVERY_PROVIDER=smtp`, `MRINSIGHT_SMTP_HOST`, `MRINSIGHT_SMTP_SENDER`, and optional SMTP username/password/TLS settings. Normal tests do not send live email.
 
+The deployed private-beta path uses Crossref discovery, OpenAI-backed analysis, SMTP digest delivery, and admin-created subscriptions. Digest previews now attempt to summarize selected papers through the configured analysis provider before rendering email content. If analysis fails for a paper, the digest still sends using the deterministic fallback summary.
+
 Scheduled execution should invoke one-shot CLI commands from cron, a container scheduler, or a cloud scheduled task:
 
 ```bash
@@ -84,6 +87,59 @@ docker compose up --build api
 ```
 
 The compose stack starts PostgreSQL, runs Alembic migrations once, then serves the API on `http://localhost:8000`.
+
+## Private Beta Operation
+
+The current live service is suitable for an admin-managed beta: an operator creates subscriptions for users, triggers previews, and schedules due digest runs. It is not yet a public self-service API because authentication, user ownership, rate limits, unsubscribe flows, and HTTPS/domain configuration are not implemented in this repository.
+
+Required production environment values are supplied outside source control, for example in `/opt/mrinsight/.env` on the host or a cloud secret store:
+
+```bash
+MRINSIGHT_ENVIRONMENT=production
+MRINSIGHT_DATABASE_URL=postgresql+psycopg://...
+MRINSIGHT_CROSSREF_MAILTO=operator@example.com
+MRINSIGHT_LLM_PROVIDER=openai
+MRINSIGHT_LLM_API_KEY=...
+MRINSIGHT_LLM_MODEL=gpt-4.1
+MRINSIGHT_DIGEST_DELIVERY_PROVIDER=smtp
+MRINSIGHT_SMTP_HOST=smtp.example.com
+MRINSIGHT_SMTP_PORT=587
+MRINSIGHT_SMTP_SENDER=operator@example.com
+MRINSIGHT_SMTP_USERNAME=operator@example.com
+MRINSIGHT_SMTP_PASSWORD=...
+MRINSIGHT_SMTP_USE_TLS=true
+MRINSIGHT_SMTP_USE_SSL=false
+```
+
+Create a subscription for a beta user:
+
+```bash
+BASE_URL=http://your-host:8000
+EMAIL=user@example.com
+
+curl -s -X POST "$BASE_URL/subscriptions" \
+  -H "content-type: application/json" \
+  -d "{
+    \"name\": \"Weekly MRI AI and CVR digest for $EMAIL\",
+    \"discovery_query\": \"MRI cerebrovascular reactivity deep learning validation uncertainty trustworthy AI medical imaging\",
+    \"topic_ids\": [1, 2, 4, 6, 7],
+    \"minimum_relevance_score\": 0.2,
+    \"preferred_categories\": [\"mri\", \"cvr\", \"machine_learning\"],
+    \"digest_cadence\": \"weekly\",
+    \"delivery_destination\": \"$EMAIL\",
+    \"enabled\": true
+  }" | python -m json.tool
+```
+
+Send a manual test digest:
+
+```bash
+curl -s -X POST "$BASE_URL/subscriptions/1/digest-preview" \
+  -H "content-type: application/json" \
+  -d '{"rows":21}' | python -m json.tool
+```
+
+Use a new `rows` value or date range when deliberately creating another preview for the same period, because digest generation is idempotent by subscription, date window, and row count. Live OpenAI analysis and SMTP delivery can incur provider costs.
 
 ## Portfolio And Demo Assets
 
@@ -112,7 +168,7 @@ curl http://localhost:8000/analyses/1
 curl http://localhost:8000/topics
 curl -X POST http://localhost:8000/subscriptions \
   -H "content-type: application/json" \
-  -d '{"name":"Weekly MRI CVR","discovery_query":"MRI CVR","topic_ids":[1]}'
+  -d '{"name":"Weekly MRI CVR","discovery_query":"MRI CVR","topic_ids":[1],"delivery_destination":"user@example.com"}'
 curl -X POST http://localhost:8000/subscriptions/1/digest-preview \
   -H "content-type: application/json" \
   -d '{"rows":10}'
@@ -133,6 +189,7 @@ curl -X POST http://localhost:8000/papers/1/full-text \
 - No OCR is implemented.
 - Deterministic relevance is triage logic, not clinical validation.
 - The TF-IDF model is an interpretable baseline trained from caller-provided fixtures, not a clinically validated classifier.
-- Live LLM calls require `MRINSIGHT_LLM_PROVIDER=openai` and `MRINSIGHT_LLM_API_KEY`; normal tests use deterministic fakes and do not call live providers.
+- Live LLM calls require `MRINSIGHT_LLM_PROVIDER=openai`, `MRINSIGHT_LLM_API_KEY`, and an accessible `MRINSIGHT_LLM_MODEL`; normal tests use deterministic fakes and do not call live providers.
 - Crossref discovery is metadata search and does not represent complete global literature coverage.
-- Cloud credentials, production domain configuration, and live deployment verification are intentionally not included.
+- Cloud credentials, production domain configuration, TLS certificates, API keys, SMTP passwords, and live host details are intentionally not committed.
+- The current private-beta API is unauthenticated. Do not expose it as a public self-service endpoint until authentication, rate limiting, user-owned subscriptions, unsubscribe handling, and budget controls are added.
